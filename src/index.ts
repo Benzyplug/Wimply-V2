@@ -20,6 +20,19 @@ const client = new Client({
 });
 client.commands = new Collection<string, Command>();
 
+function isLoadableModuleFile(name: string): boolean {
+  // `.d.ts` declaration files end in `.ts` too, so a naive `.endsWith('.ts')`
+  // check matches them and the loader will try to `import()` them as if they
+  // were runtime code. A `.d.ts` file has no runtime bindings (it's type-only),
+  // so evaluating it throws "ReferenceError: <name> is not defined" the moment
+  // the erased declaration is referenced (e.g. `export default command;` after
+  // `declare const command: Command;` has been stripped). Explicitly excluding
+  // `.d.ts` here means the loader is correct even if declaration output is ever
+  // re-enabled in tsconfig, or a stray `.d.ts` ends up in `dist/` some other way.
+  if (name.endsWith('.d.ts')) return false;
+  return name.endsWith('.ts') || name.endsWith('.js');
+}
+
 function getFilePaths(folder: string): string[] {
   const entries = fs.readdirSync(folder, { withFileTypes: true });
   const paths: string[] = [];
@@ -28,7 +41,7 @@ function getFilePaths(folder: string): string[] {
     const absolutePath = path.join(folder, entry.name);
     if (entry.isDirectory()) {
       paths.push(...getFilePaths(absolutePath));
-    } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js'))) {
+    } else if (entry.isFile() && isLoadableModuleFile(entry.name)) {
       paths.push(absolutePath);
     }
   }
@@ -57,7 +70,7 @@ async function loadCommands() {
 
 async function loadEvents() {
   const eventsPath = path.join(__dirname, 'events');
-  const eventFiles = fs.readdirSync(eventsPath).filter((file: string) => file.endsWith('.ts') || file.endsWith('.js'));
+  const eventFiles = fs.readdirSync(eventsPath).filter((file: string) => isLoadableModuleFile(file));
 
   for (const file of eventFiles) {
     const eventModule = await import(`./events/${file}`);
