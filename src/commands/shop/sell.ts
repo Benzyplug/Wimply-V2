@@ -28,13 +28,22 @@ const command: Command = {
     const quantity = interaction.options.getInteger('quantity') ?? 1;
     const { user, config } = await getOrCreateUser(interaction.user.id, interaction.guildId);
     const item = await findItemByName(config, itemName);
+
     if (!item) {
-      await interaction.editReply({ content: 'Item not found in the shop.', ephemeral: true });
+      await interaction.editReply({ content: 'Item not found in the shop.' });
       return;
     }
 
     const result = await sellItem(user, item, quantity);
-    await interaction.editReply({ embeds: [createSuccessEmbed('Sell Complete', `Sold ${quantity} x ${item.name} for ${formatCurrency(result.totalGain, config.currencyEmoji)}.`)] });
+
+    await interaction.editReply({
+      embeds: [
+        createSuccessEmbed(
+          'Sell Complete',
+          `Sold ${quantity} x ${item.name} for ${formatCurrency(result.totalGain, config.currencyEmoji)}.`
+        )
+      ]
+    });
   }
 };
 
