@@ -6,9 +6,11 @@ export function isAdminInteraction(interaction: ChatInputCommandInteraction): bo
 }
 
 export function isModeratorInteraction(interaction: ChatInputCommandInteraction): boolean {
-  return interaction.memberPermissions?.has(PermissionsBitField.Flags.ModerateMembers) ||
+  return (
+    interaction.memberPermissions?.has(PermissionsBitField.Flags.ModerateMembers) ||
     interaction.memberPermissions?.has(PermissionsBitField.Flags.ManageMessages) ||
-    isAdminInteraction(interaction);
+    isAdminInteraction(interaction)
+  ) ?? false;
 }
 
 export function assertAdmin(interaction: ChatInputCommandInteraction): void {
