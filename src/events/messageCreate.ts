@@ -8,17 +8,8 @@ import { handleInteractionError } from '../utils/errorHandler.js';
 const PREFIXES = ['#', '!'];
 const FOOTER = 'Wimply V2.0 • Built by SHAX ⚡';
 
-type PrefixOption = {
-  type: number;
-  name: string;
-  required?: boolean;
-  options?: PrefixOption[];
-};
-
-type PrefixCommandJson = {
-  name: string;
-  options?: PrefixOption[];
-};
+type PrefixOption = { type: number; name: string; required?: boolean; options?: PrefixOption[] };
+type PrefixCommandJson = { name: string; options?: PrefixOption[] };
 
 function baseEmbed(title: string, description: string) {
   return new EmbedBuilder().setColor(Colors.Blurple).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: FOOTER });
@@ -26,13 +17,12 @@ function baseEmbed(title: string, description: string) {
 
 function resolveCommandShape(command: Command, tokens: string[]) {
   const json = command.data.toJSON() as unknown as PrefixCommandJson;
-  const rootOptions = json.options ?? [];
-  let options = rootOptions;
+  let options = json.options ?? [];
   let index = 0;
   let subcommand: string | undefined;
   let subcommandGroup: string | undefined;
-
   const first = options[index];
+
   if (first?.type === 2) {
     subcommandGroup = tokens[index]?.toLowerCase();
     index += 1;
@@ -40,13 +30,11 @@ function resolveCommandShape(command: Command, tokens: string[]) {
     options = group?.options ?? [];
     subcommand = tokens[index]?.toLowerCase();
     index += 1;
-    const sub = options.find(option => option.name === subcommand);
-    options = sub?.options ?? [];
+    options = options.find(option => option.name === subcommand)?.options ?? [];
   } else if (first?.type === 1) {
     subcommand = tokens[index]?.toLowerCase();
     index += 1;
-    const sub = options.find(option => option.name === subcommand);
-    options = sub?.options ?? [];
+    options = options.find(option => option.name === subcommand)?.options ?? [];
   }
 
   const values = new Map<string, string>();
@@ -57,7 +45,6 @@ function resolveCommandShape(command: Command, tokens: string[]) {
       index += 1;
     }
   }
-
   return { values, subcommand, subcommandGroup };
 }
 
@@ -83,7 +70,6 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
   const { values, subcommand, subcommandGroup } = resolveCommandShape(command, tokens);
   let sent: Message | null = null;
   let deferred = false;
-
   const getValue = (name: string, required = false) => {
     const value = values.get(name);
     if (required && value === undefined) throw new Error(`Missing required argument: **${name}**`);
@@ -92,41 +78,15 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
 
   const options = {
     getString: (name: string, required = false) => getValue(name, required) ?? null,
-    getInteger: (name: string, required = false) => {
-      const value = getValue(name, required);
-      return value === undefined ? null : Number.parseInt(value, 10);
-    },
-    getNumber: (name: string, required = false) => {
-      const value = getValue(name, required);
-      return value === undefined ? null : Number.parseFloat(value);
-    },
-    getBoolean: (name: string, required = false) => {
-      const value = getValue(name, required);
-      return value === undefined ? null : value.toLowerCase() === 'true';
-    },
-    getUser: (name: string, required = false) => {
-      const user = resolveUser(message, getValue(name, required));
-      if (required && !user) throw new Error(`Could not find user for **${name}**.`);
-      return user;
-    },
-    getChannel: (name: string, required = false) => {
-      const channel = resolveChannel(message, getValue(name, required));
-      if (required && !channel) throw new Error(`Could not find channel for **${name}**.`);
-      return channel;
-    },
-    getRole: (name: string, required = false) => {
-      const role = resolveRole(message, getValue(name, required));
-      if (required && !role) throw new Error(`Could not find role for **${name}**.`);
-      return role;
-    },
-    getSubcommand: (required = true) => {
-      if (required && !subcommand) throw new Error('Missing required subcommand.');
-      return subcommand ?? null;
-    },
-    getSubcommandGroup: (required = false) => {
-      if (required && !subcommandGroup) throw new Error('Missing required subcommand group.');
-      return subcommandGroup ?? null;
-    }
+    getInteger: (name: string, required = false) => { const value = getValue(name, required); return value === undefined ? null : Number.parseInt(value, 10); },
+    getNumber: (name: string, required = false) => { const value = getValue(name, required); return value === undefined ? null : Number.parseFloat(value); },
+    getBoolean: (name: string, required = false) => { const value = getValue(name, required); return value === undefined ? null : value.toLowerCase() === 'true'; },
+    getUser: (name: string, required = false) => { const user = resolveUser(message, getValue(name, required)); if (required && !user) throw new Error(`Could not find user for **${name}**.`); return user; },
+    getChannel: (name: string, required = false) => { const channel = resolveChannel(message, getValue(name, required)); if (required && !channel) throw new Error(`Could not find channel for **${name}**.`); return channel; },
+    getRole: (name: string, required = false) => { const role = resolveRole(message, getValue(name, required)); if (required && !role) throw new Error(`Could not find role for **${name}**.`); return role; },
+    getMentionable: (name: string, required = false) => resolveUser(message, getValue(name, required)) ?? resolveRole(message, getValue(name, required)),
+    getSubcommand: (required = true) => { if (required && !subcommand) throw new Error('Missing required subcommand.'); return subcommand ?? null; },
+    getSubcommandGroup: (required = false) => { if (required && !subcommandGroup) throw new Error('Missing required subcommand group.'); return subcommandGroup ?? null; }
   };
 
   const adapter = {
@@ -143,24 +103,11 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
     isRepliable: () => true,
     isChatInputCommand: () => true,
     deferReply: async () => { deferred = true; },
-    reply: async (payload: string | MessageReplyOptions) => {
-      sent = await message.reply(payload);
-      deferred = false;
-      return sent;
-    },
-    editReply: async (payload: string | MessageReplyOptions) => {
-      if (sent) {
-        sent = await sent.edit(payload as Parameters<Message['edit']>[0]);
-      } else {
-        sent = await message.reply(payload);
-      }
-      deferred = false;
-      return sent;
-    },
+    reply: async (payload: string | MessageReplyOptions) => { sent = await message.reply(payload); deferred = false; return sent; },
+    editReply: async (payload: string | MessageReplyOptions) => { sent = sent ? await sent.edit(payload as Parameters<Message['edit']>[0]) : await message.reply(payload); deferred = false; return sent; },
     followUp: async (payload: string | MessageReplyOptions) => message.reply(payload),
     deleteReply: async () => { if (sent) await sent.delete(); }
   };
-
   return adapter as unknown as Parameters<Command['execute']>[0];
 }
 
@@ -168,7 +115,6 @@ async function handlePrefix(message: Message): Promise<boolean> {
   const content = message.content.trim();
   const prefix = PREFIXES.find(candidate => content.startsWith(candidate));
   if (!prefix) return false;
-
   const tokens = content.slice(prefix.length).trim().split(/\s+/).filter(Boolean);
   const name = tokens.shift()?.toLowerCase();
   if (!name) return false;
@@ -185,11 +131,11 @@ async function handlePrefix(message: Message): Promise<boolean> {
     return true;
   }
 
+  const adapter = buildPrefixInteraction(message, command, tokens);
   try {
-    const adapter = buildPrefixInteraction(message, command, tokens);
     await command.execute(adapter);
   } catch (error) {
-    await handleInteractionError(buildPrefixInteraction(message, command, tokens), error);
+    await handleInteractionError(adapter, error);
   }
   return true;
 }
@@ -199,10 +145,8 @@ export default {
   once: false,
   async execute(message: Message) {
     if (!message.guildId || message.author.bot || !message.content.trim()) return;
-
     try {
       if (await handlePrefix(message)) return;
-
       const rules = await getMatchingReactionRules(message.guildId, message.channelId, message.content);
       for (const rule of rules) {
         try {
