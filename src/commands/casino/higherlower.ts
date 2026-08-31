@@ -26,8 +26,9 @@ const command: Command = {
     await chargeGame(interaction.user.id, interaction.guildId, bet, 'Higher/Lower');
     const currency = await getGameCurrency(interaction.guildId);
     const id = `${interaction.guildId}:${interaction.user.id}`;
-    higherLowerGames.set(id, { userId: interaction.user.id, guildId: interaction.guildId, bet, current: Math.floor(Math.random() * 90) + 5, expiresAt: Date.now() + 5 * 60_000 });
-    await interaction.reply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🎯 HIGHER / LOWER 〕─╮').setDescription(`〢 Starting bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Current number: **${higherLowerGames.get(id)?.current}**\n\nChoose whether the next number goes **higher** or **lower**.\n\n╰─〔 💰 Cash out whenever you want 〕─╯`)], components: [buttons(id)] });
+    const current = Math.floor(Math.random() * 90) + 5;
+    higherLowerGames.set(id, { userId: interaction.user.id, guildId: interaction.guildId, bet, current, multiplier: 1, expiresAt: Date.now() + 5 * 60_000 });
+    await interaction.reply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🎯 HIGHER / LOWER 〕─╮').setDescription(`〢 Starting bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Current number: **${current}**\n〢 Secured multiplier: **1.00x**\n\nChoose whether the next number goes **higher** or **lower**.\n\n╰─〔 💰 Cash out whenever you want 〕─╯`)], components: [buttons(id)] });
   }
 };
 
