@@ -26,7 +26,7 @@ const command: Command = {
     const item = await findItemByName(config, itemName);
 
     if (!item || !item.usable) {
-      await interaction.editReply({ content: 'That item cannot be used or does not exist.', ephemeral: true });
+      await interaction.editReply({ content: 'That item cannot be used or does not exist.' });
       return;
     }
 
@@ -50,10 +50,12 @@ const command: Command = {
 
     if (item.boostType === 'role' && item.boostTarget) {
       if (!interaction.guild) {
-        await interaction.editReply({ content: 'This command must be used in a guild.', ephemeral: true });
+        await interaction.editReply({ content: 'This command must be used in a guild.' });
         return;
       }
+
       const member = await interaction.guild.members.fetch(interaction.user.id);
+
       if (!member.roles.cache.has(item.boostTarget)) {
         await member.roles.add(item.boostTarget);
         resultMessage += ' You were granted a role reward.';
@@ -62,7 +64,9 @@ const command: Command = {
       }
     }
 
-    await interaction.editReply({ embeds: [createSuccessEmbed('Item Used', resultMessage)] });
+    await interaction.editReply({
+      embeds: [createSuccessEmbed('Item Used', resultMessage)]
+    });
   }
 };
 
