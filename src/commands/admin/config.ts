@@ -19,25 +19,17 @@ const command: Command = {
   data: new SlashCommandBuilder()
     .setName('config')
     .setDescription('Update server economy and reaction settings')
-
     .addSubcommand((sub) =>
       sub
         .setName('currency')
         .setDescription('Set currency display settings')
         .addStringOption((option) =>
-          option
-            .setName('name')
-            .setDescription('Currency name')
-            .setRequired(true)
+          option.setName('name').setDescription('Currency name').setRequired(true)
         )
         .addStringOption((option) =>
-          option
-            .setName('emoji')
-            .setDescription('Currency emoji')
-            .setRequired(true)
+          option.setName('emoji').setDescription('Currency emoji').setRequired(true)
         )
     )
-
     .addSubcommand((sub) =>
       sub
         .setName('cooldown')
@@ -58,25 +50,17 @@ const command: Command = {
             )
         )
         .addIntegerOption((option) =>
-          option
-            .setName('hours')
-            .setDescription('Cooldown in hours')
-            .setRequired(true)
+          option.setName('hours').setDescription('Cooldown in hours').setRequired(true)
         )
     )
-
     .addSubcommand((sub) =>
       sub
         .setName('tax')
         .setDescription('Set the transaction tax percentage')
         .addIntegerOption((option) =>
-          option
-            .setName('percent')
-            .setDescription('Tax percent')
-            .setRequired(true)
+          option.setName('percent').setDescription('Tax percent').setRequired(true)
         )
     )
-
     .addSubcommand((sub) =>
       sub
         .setName('interest')
@@ -88,12 +72,10 @@ const command: Command = {
             .setRequired(true)
         )
     )
-
     .addSubcommandGroup((group) =>
       group
         .setName('reaction')
         .setDescription('Configure automatic message reactions')
-
         .addSubcommand((sub) =>
           sub
             .setName('add')
@@ -123,25 +105,17 @@ const command: Command = {
                 )
             )
         )
-
         .addSubcommand((sub) =>
-          sub
-            .setName('list')
-            .setDescription("List this server's reaction rules")
+          sub.setName('list').setDescription("List this server's reaction rules")
         )
-
         .addSubcommand((sub) =>
           sub
             .setName('remove')
             .setDescription('Remove a reaction rule by ID')
             .addStringOption((option) =>
-              option
-                .setName('id')
-                .setDescription('Reaction rule ID')
-                .setRequired(true)
+              option.setName('id').setDescription('Reaction rule ID').setRequired(true)
             )
         )
-
         .addSubcommand((sub) =>
           sub
             .setName('clear')
@@ -154,8 +128,7 @@ const command: Command = {
 
     if (!interaction.guildId) {
       await interaction.reply({
-        content: 'This command must be used in a guild.',
-        ephemeral: true
+        content: 'This command must be used in a guild.'
       });
       return;
     }
@@ -165,20 +138,10 @@ const command: Command = {
     const group = interaction.options.getSubcommandGroup(false);
     const subcommand = interaction.options.getSubcommand();
 
-    // ==============================
-    // REACTION CONFIGURATION
-    // ==============================
-
     if (group === 'reaction') {
       if (subcommand === 'add') {
-        const trigger = interaction.options
-          .getString('trigger', true)
-          .trim();
-
-        const emoji = interaction.options
-          .getString('emoji', true)
-          .trim();
-
+        const trigger = interaction.options.getString('trigger', true).trim();
+        const emoji = interaction.options.getString('emoji', true).trim();
         const channel = interaction.options.getChannel('channel', true);
 
         if (!trigger) {
@@ -199,14 +162,10 @@ const command: Command = {
           embeds: [
             createSuccessEmbed(
               'Reaction Rule Added',
-              `**ID:** \`${rule.id}\`\n` +
-                `**Trigger:** ${trigger}\n` +
-                `**Emoji:** ${emoji}\n` +
-                `**Channel:** <#${channel.id}>`
+              `**ID:** \`${rule.id}\`\n**Trigger:** ${trigger}\n**Emoji:** ${emoji}\n**Channel:** <#${channel.id}>`
             )
           ]
         });
-
         return;
       }
 
@@ -226,23 +185,15 @@ const command: Command = {
         );
 
         await interaction.editReply({
-          embeds: [
-            createSuccessEmbed('Reaction Rules', lines.join('\n'))
-          ]
+          embeds: [createSuccessEmbed('Reaction Rules', lines.join('\n'))]
         });
-
         return;
       }
 
       if (subcommand === 'remove') {
-        const id = interaction.options
-          .getString('id', true)
-          .trim();
+        const id = interaction.options.getString('id', true).trim();
 
-        const deleted = await deleteReactionRule(
-          interaction.guildId,
-          id
-        );
+        const deleted = await deleteReactionRule(interaction.guildId, id);
 
         if (!deleted) {
           throw new AppError(
@@ -258,14 +209,11 @@ const command: Command = {
             )
           ]
         });
-
         return;
       }
 
       if (subcommand === 'clear') {
-        const count = await clearReactionRules(
-          interaction.guildId
-        );
+        const count = await clearReactionRules(interaction.guildId);
 
         await interaction.editReply({
           embeds: [
@@ -275,14 +223,9 @@ const command: Command = {
             )
           ]
         });
-
         return;
       }
     }
-
-    // ==============================
-    // ECONOMY CONFIGURATION
-    // ==============================
 
     const type = interaction.options.getString('type');
     const name = interaction.options.getString('name');
@@ -291,25 +234,11 @@ const command: Command = {
     const percent = interaction.options.getInteger('percent');
     const rate = interaction.options.getNumber('rate');
 
-    const updates: Partial<{
-      currencyName: string;
-      currencyEmoji: string;
-      dailyCooldown: number;
-      weeklyCooldown: number;
-      monthlyCooldown: number;
-      workCooldown: number;
-      crimeCooldown: number;
-      robCooldown: number;
-      begCooldown: number;
-      taxPercent: number;
-      interestRate: number;
-    }> = {};
+    const updates: Record<string, string | number> = {};
 
     if (subcommand === 'currency') {
       if (!name || !emoji) {
-        throw new AppError(
-          'Currency name and emoji are required.'
-        );
+        throw new AppError('Currency name and emoji are required.');
       }
 
       updates.currencyName = name;
@@ -318,28 +247,15 @@ const command: Command = {
 
     if (subcommand === 'cooldown') {
       if (!type || hours === null) {
-        throw new AppError(
-          'Cooldown type and hours are required.'
-        );
+        throw new AppError('Cooldown type and hours are required.');
       }
 
-      const cooldownKey = type as
-        | 'dailyCooldown'
-        | 'weeklyCooldown'
-        | 'monthlyCooldown'
-        | 'workCooldown'
-        | 'crimeCooldown'
-        | 'robCooldown'
-        | 'begCooldown';
-
-      updates[cooldownKey] = hours;
+      updates[type] = hours;
     }
 
     if (subcommand === 'tax') {
       if (percent === null) {
-        throw new AppError(
-          'Tax percentage is required.'
-        );
+        throw new AppError('Tax percentage is required.');
       }
 
       updates.taxPercent = percent;
@@ -347,9 +263,7 @@ const command: Command = {
 
     if (subcommand === 'interest') {
       if (rate === null) {
-        throw new AppError(
-          'Interest rate is required.'
-        );
+        throw new AppError('Interest rate is required.');
       }
 
       updates.interestRate = rate;
