@@ -1,13 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-
-  binaryTargets = [
-    "native",
-    "linux-arm64-openssl-1.1.x",
-    "linux-arm64-openssl-3.0.x",
-    "debian-openssl-3.0.x",
-    "debian-openssl-1.1.x"
-  ]
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -34,7 +27,7 @@ model GuildConfig {
   xpPerMessage    Int            @default(5)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
-  items           Item[]         @relation
+  items           Item[]         
   reactionRules   ReactionRule[]
   users           User[]
 }
