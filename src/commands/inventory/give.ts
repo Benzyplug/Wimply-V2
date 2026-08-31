@@ -35,18 +35,18 @@ const command: Command = {
     const item = await findItemByName(config, itemName);
 
     if (!item) {
-      await interaction.editReply({ content: 'Item not found in the shop.', ephemeral: true });
+      await interaction.editReply({ content: 'Item not found in the shop.' });
       return;
     }
 
-    // Move the item between the two users' inventories atomically so a failure
-    // partway through can't destroy the item or duplicate it.
     await prisma.$transaction(async (tx) => {
       await removeInventoryItem(user, item, quantity, tx);
       await addInventoryItem(targetToken.user, item, quantity, tx);
     });
 
-    await interaction.editReply({ embeds: [createSuccessEmbed('Item Gifted', `Gave ${quantity} x ${item.emoji} ${item.name} to ${target.tag}.`)] });
+    await interaction.editReply({
+      embeds: [createSuccessEmbed('Item Gifted', `Gave ${quantity} x ${item.emoji} ${item.name} to ${target.tag}.`)]
+    });
   }
 };
 
