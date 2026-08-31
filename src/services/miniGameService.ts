@@ -7,6 +7,7 @@ export type HigherLowerState = {
   guildId: string;
   bet: bigint;
   current: number;
+  multiplier: number;
   expiresAt: number;
 };
 
