@@ -7,12 +7,16 @@ import { handleInteractionError } from '../utils/errorHandler.js';
 
 const PREFIXES = ['#', '!'];
 const FOOTER = 'Wimply V2.0 • Built by SHAX ⚡';
-
 type PrefixOption = { type: number; name: string; required?: boolean; options?: PrefixOption[] };
 type PrefixCommandJson = { name: string; options?: PrefixOption[] };
 
 function baseEmbed(title: string, description: string) {
   return new EmbedBuilder().setColor(Colors.Blurple).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: FOOTER });
+}
+
+function tokenize(input: string) {
+  const matches = input.match(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+/g) ?? [];
+  return matches.map(token => (token.startsWith('"') || token.startsWith("'")) ? token.slice(1, -1) : token);
 }
 
 function resolveCommandShape(command: Command, tokens: string[]) {
@@ -84,7 +88,7 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
     getUser: (name: string, required = false) => { const user = resolveUser(message, getValue(name, required)); if (required && !user) throw new Error(`Could not find user for **${name}**.`); return user; },
     getChannel: (name: string, required = false) => { const channel = resolveChannel(message, getValue(name, required)); if (required && !channel) throw new Error(`Could not find channel for **${name}**.`); return channel; },
     getRole: (name: string, required = false) => { const role = resolveRole(message, getValue(name, required)); if (required && !role) throw new Error(`Could not find role for **${name}**.`); return role; },
-    getMentionable: (name: string, required = false) => resolveUser(message, getValue(name, required)) ?? resolveRole(message, getValue(name, required)),
+    getMentionable: (name: string, required = false) => { const value = getValue(name, required); return resolveUser(message, value) ?? resolveRole(message, value); },
     getSubcommand: (required = true) => { if (required && !subcommand) throw new Error('Missing required subcommand.'); return subcommand ?? null; },
     getSubcommandGroup: (required = false) => { if (required && !subcommandGroup) throw new Error('Missing required subcommand group.'); return subcommandGroup ?? null; }
   };
@@ -115,7 +119,7 @@ async function handlePrefix(message: Message): Promise<boolean> {
   const content = message.content.trim();
   const prefix = PREFIXES.find(candidate => content.startsWith(candidate));
   if (!prefix) return false;
-  const tokens = content.slice(prefix.length).trim().split(/\s+/).filter(Boolean);
+  const tokens = tokenize(content.slice(prefix.length).trim());
   const name = tokens.shift()?.toLowerCase();
   if (!name) return false;
 
