@@ -10,8 +10,8 @@ const schema = z.object({ amount: z.string().min(1) });
 const size = 20;
 const mineCount = 4;
 
-function boardRows(id: string, revealed: Set<number>, mines?: Set<number>) {
-  return Array.from({ length: 5 }, (_, r) => {
+function boardRows(id: string, revealed: Set<number>, mines?: Set<number>, includeCashout = true) {
+  const rows = Array.from({ length: 5 }, (_, r) => {
     const row = new ActionRowBuilder<ButtonBuilder>();
     for (let c = 0; c < 4; c++) {
       const i = r * 4 + c;
@@ -20,6 +20,8 @@ function boardRows(id: string, revealed: Set<number>, mines?: Set<number>) {
     }
     return row;
   });
+  if (includeCashout) rows[4].addComponents(new ButtonBuilder().setCustomId(`mines:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success));
+  return rows;
 }
 
 const command: Command = {
@@ -38,7 +40,7 @@ const command: Command = {
     minesGames.set(id, { userId: interaction.user.id, guildId: interaction.guildId, bet, mines: randomMines(mineCount, size), revealed, multiplier: 1, expiresAt: Date.now() + 10 * 60_000 });
     await interaction.reply({
       embeds: [createDefaultEmbed().setTitle('╭─〔 💣 MINES 〕─╮').setDescription(`〢 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Mines: **${mineCount}**\n〢 Multiplier: **1.00x**\n\nPick a tile. Find 💎 to raise the payout. Hit 💣 and the bet is gone.\n\n╰─〔 💰 Cash out before you get mined 〕─╯`)],
-      components: [...boardRows(id, revealed), new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`mines:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success))]
+      components: boardRows(id, revealed)
     });
   }
 };
