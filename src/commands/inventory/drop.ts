@@ -25,7 +25,7 @@ const command: Command = {
     const item = await findItemByName(config, itemName);
 
     if (!item) {
-      await interaction.editReply({ content: 'Item not found in your inventory.', ephemeral: true });
+      await interaction.editReply({ content: 'Item not found in your inventory.' });
       return;
     }
 
