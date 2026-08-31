@@ -120,7 +120,7 @@ const command: Command = {
     const itemName = interaction.options.getString('item', true);
     const item = await findItemByName(guildConfig, itemName);
     if (!item) {
-      await interaction.editReply({ content: 'Item not found in this guild shop.', ephemeral: true });
+      await interaction.editReply({ content: 'Item not found in this guild shop.' });
       return;
     }
 
