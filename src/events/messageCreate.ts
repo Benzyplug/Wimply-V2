@@ -1,125 +1,214 @@
 import { EmbedBuilder, Colors } from 'discord.js';
-import type { Message } from 'discord.js';
+import type { Message, MessageReplyOptions } from 'discord.js';
+import type { Command } from '../types/command.js';
 import { getMatchingReactionRules } from '../services/reactionService.js';
-import { getOrCreateUser } from '../services/userService.js';
-import { getBalance } from '../services/economyService.js';
 import { log } from '../utils/logger.js';
-import { formatCurrency } from '../utils/format.js';
+import { handleInteractionError } from '../utils/errorHandler.js';
 
-const PREFIX = '#';
+const PREFIXES = ['#', '!'];
 const FOOTER = 'Wimply V2.0 • Built by SHAX ⚡';
 
+type PrefixOption = {
+  type: number;
+  name: string;
+  required?: boolean;
+  options?: PrefixOption[];
+};
+
+type PrefixCommandJson = {
+  name: string;
+  options?: PrefixOption[];
+};
+
 function baseEmbed(title: string, description: string) {
-  return new EmbedBuilder()
-    .setColor(Colors.Blurple)
-    .setTitle(title)
-    .setDescription(description)
-    .setTimestamp()
-    .setFooter({ text: FOOTER });
+  return new EmbedBuilder().setColor(Colors.Blurple).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: FOOTER });
+}
+
+function resolveCommandShape(command: Command, tokens: string[]) {
+  const json = command.data.toJSON() as unknown as PrefixCommandJson;
+  const rootOptions = json.options ?? [];
+  let options = rootOptions;
+  let index = 0;
+  let subcommand: string | undefined;
+  let subcommandGroup: string | undefined;
+
+  const first = options[index];
+  if (first?.type === 2) {
+    subcommandGroup = tokens[index]?.toLowerCase();
+    index += 1;
+    const group = first.options?.find(option => option.name === subcommandGroup);
+    options = group?.options ?? [];
+    subcommand = tokens[index]?.toLowerCase();
+    index += 1;
+    const sub = options.find(option => option.name === subcommand);
+    options = sub?.options ?? [];
+  } else if (first?.type === 1) {
+    subcommand = tokens[index]?.toLowerCase();
+    index += 1;
+    const sub = options.find(option => option.name === subcommand);
+    options = sub?.options ?? [];
+  }
+
+  const values = new Map<string, string>();
+  for (const option of options.filter(option => option.type >= 3)) {
+    const value = tokens[index];
+    if (value !== undefined) {
+      values.set(option.name, value);
+      index += 1;
+    }
+  }
+
+  return { values, subcommand, subcommandGroup };
+}
+
+function resolveUser(message: Message, value?: string) {
+  if (!value) return null;
+  const id = value.match(/^<@!?([0-9]+)>$/)?.[1] ?? value;
+  return message.client.users.cache.get(id) ?? message.mentions.users.get(id) ?? null;
+}
+
+function resolveChannel(message: Message, value?: string) {
+  if (!value || !message.guild) return null;
+  const id = value.match(/^<#([0-9]+)>$/)?.[1] ?? value;
+  return message.guild.channels.cache.get(id) ?? null;
+}
+
+function resolveRole(message: Message, value?: string) {
+  if (!value || !message.guild) return null;
+  const id = value.match(/^<@&([0-9]+)>$/)?.[1] ?? value;
+  return message.guild.roles.cache.get(id) ?? null;
+}
+
+function buildPrefixInteraction(message: Message, command: Command, tokens: string[]) {
+  const { values, subcommand, subcommandGroup } = resolveCommandShape(command, tokens);
+  let sent: Message | null = null;
+  let deferred = false;
+
+  const getValue = (name: string, required = false) => {
+    const value = values.get(name);
+    if (required && value === undefined) throw new Error(`Missing required argument: **${name}**`);
+    return value;
+  };
+
+  const options = {
+    getString: (name: string, required = false) => getValue(name, required) ?? null,
+    getInteger: (name: string, required = false) => {
+      const value = getValue(name, required);
+      return value === undefined ? null : Number.parseInt(value, 10);
+    },
+    getNumber: (name: string, required = false) => {
+      const value = getValue(name, required);
+      return value === undefined ? null : Number.parseFloat(value);
+    },
+    getBoolean: (name: string, required = false) => {
+      const value = getValue(name, required);
+      return value === undefined ? null : value.toLowerCase() === 'true';
+    },
+    getUser: (name: string, required = false) => {
+      const user = resolveUser(message, getValue(name, required));
+      if (required && !user) throw new Error(`Could not find user for **${name}**.`);
+      return user;
+    },
+    getChannel: (name: string, required = false) => {
+      const channel = resolveChannel(message, getValue(name, required));
+      if (required && !channel) throw new Error(`Could not find channel for **${name}**.`);
+      return channel;
+    },
+    getRole: (name: string, required = false) => {
+      const role = resolveRole(message, getValue(name, required));
+      if (required && !role) throw new Error(`Could not find role for **${name}**.`);
+      return role;
+    },
+    getSubcommand: (required = true) => {
+      if (required && !subcommand) throw new Error('Missing required subcommand.');
+      return subcommand ?? null;
+    },
+    getSubcommandGroup: (required = false) => {
+      if (required && !subcommandGroup) throw new Error('Missing required subcommand group.');
+      return subcommandGroup ?? null;
+    }
+  };
+
+  const adapter = {
+    user: message.author,
+    member: message.member,
+    guild: message.guild,
+    guildId: message.guildId,
+    channel: message.channel,
+    client: message.client,
+    memberPermissions: message.member?.permissions ?? null,
+    options,
+    get replied() { return sent !== null; },
+    get deferred() { return deferred; },
+    isRepliable: () => true,
+    isChatInputCommand: () => true,
+    deferReply: async () => { deferred = true; },
+    reply: async (payload: string | MessageReplyOptions) => {
+      sent = await message.reply(payload);
+      deferred = false;
+      return sent;
+    },
+    editReply: async (payload: string | MessageReplyOptions) => {
+      if (sent) {
+        sent = await sent.edit(payload as Parameters<Message['edit']>[0]);
+      } else {
+        sent = await message.reply(payload);
+      }
+      deferred = false;
+      return sent;
+    },
+    followUp: async (payload: string | MessageReplyOptions) => message.reply(payload),
+    deleteReply: async () => { if (sent) await sent.delete(); }
+  };
+
+  return adapter as unknown as Parameters<Command['execute']>[0];
 }
 
 async function handlePrefix(message: Message): Promise<boolean> {
   const content = message.content.trim();
-  if (!content.startsWith(PREFIX)) return false;
+  const prefix = PREFIXES.find(candidate => content.startsWith(candidate));
+  if (!prefix) return false;
 
-  const [rawName, ...args] = content.slice(PREFIX.length).trim().split(/\s+/);
-  const name = rawName?.toLowerCase();
+  const tokens = content.slice(prefix.length).trim().split(/\s+/).filter(Boolean);
+  const name = tokens.shift()?.toLowerCase();
   if (!name) return false;
 
   if (name === 'help' || name === 'commands') {
-    await message.reply({
-      embeds: [baseEmbed(
-        '╭─〔 📖 WIMPLY PREFIX 〕─╮',
-        '〢 Prefix mode is enabled with `#`.' +
-        '\n\n**Core**\n`#help` • `#ping` • `#balance` • `#profile` • `#owner`' +
-        '\n\n**Slash mode**\nEvery registered slash command remains available with `/`.' +
-        '\n\n╰─〔 ⚡ More prefix aliases can be added without changing slash commands 〕─╯'
-      )]
-    });
+    const commands = message.client.commands ? [...message.client.commands.keys()].sort() : [];
+    await message.reply({ embeds: [baseEmbed('╭─〔 📖 WIMPLY COMMAND CENTER 〕─╮', `〢 **Prefix:** \`#\` or \`!\`\n〢 **Slash:** \`/\`\n\n${commands.map(command => `• \`${prefix}${command}\``).join('\n')}\n\n╰─〔 ⚡ Prefix and slash interfaces share the same command logic 〕─╯`)] });
     return true;
   }
 
-  if (name === 'ping') {
-    const sent = await message.reply({ embeds: [baseEmbed('╭─〔 🏓 PING 〕─╮', '〢 Measuring Wimply latency…')] });
-    const latency = sent.createdTimestamp - message.createdTimestamp;
-    await sent.edit({ embeds: [baseEmbed('╭─〔 🏓 PONG 〕─╮', `〢 **Latency:** ${latency}ms\n〢 **Gateway:** ${message.client.ws.ping}ms\n〢 **Status:** 🟢 Online`)] });
+  const command = message.client.commands?.get(name);
+  if (!command) {
+    await message.reply({ embeds: [baseEmbed('╭─〔 ❔ UNKNOWN COMMAND 〕─╮', `〢 \`${prefix}${name}\` is not a Wimply command.\n〢 Run \`${prefix}help\` to see the command center.`)] });
     return true;
   }
 
-  if (!message.guildId) return true;
-
-  if (name === 'balance' || name === 'bal' || name === 'cash') {
-    const target = message.mentions.users.first() ?? message.author;
-    const { user, config } = await getBalance(target.id, message.guildId);
-    await message.reply({
-      embeds: [baseEmbed(
-        `╭─〔 🪙 ${target.username.toUpperCase()}'S BALANCE 〕─╮`,
-        `〢 **Wallet:** ${formatCurrency(user.wallet, config.currencyEmoji)}\n` +
-        `〢 **Bank:** ${formatCurrency(user.bank, config.currencyEmoji)}\n` +
-        `〢 **Total:** ${formatCurrency(user.wallet + user.bank, config.currencyEmoji)}\n\n` +
-        `╰─〔 ⭐ Level ${user.level} • ${user.xp} XP 〕─╯`
-      )]
-    });
-    return true;
+  try {
+    const adapter = buildPrefixInteraction(message, command, tokens);
+    await command.execute(adapter);
+  } catch (error) {
+    await handleInteractionError(buildPrefixInteraction(message, command, tokens), error);
   }
-
-  if (name === 'profile' || name === 'prof') {
-    const target = message.mentions.users.first() ?? message.author;
-    const { user, config } = await getOrCreateUser(target.id, message.guildId);
-    const embed = baseEmbed(
-      `╭─〔 👤 ${target.username.toUpperCase()}'S PROFILE 〕─╮`,
-      `〢 **Currency:** ${config.currencyEmoji} ${config.currencyName}\n` +
-      `〢 **Level:** ${user.level}\n〢 **XP:** ${user.xp}\n` +
-      `〢 **Badges:** ${user.badges.length ? user.badges.join(' • ') : 'None'}\n\n` +
-      `╰─〔 🪙 ${formatCurrency(user.wallet + user.bank, config.currencyEmoji)} total 〕─╯`
-    ).setThumbnail(target.displayAvatarURL({ size: 256 }));
-    await message.reply({ embeds: [embed] });
-    return true;
-  }
-
-  if (name === 'owner') {
-    await message.reply({
-      embeds: [baseEmbed(
-        '╭─〔 👑 WIMPLY OWNER 〕─╮',
-        '〢 **Name:** Benzy\n〢 **Alias:** SHAX\n〢 **Role:** Founder & Developer\n\n' +
-        '〢 **Stack:** TypeScript • Node.js • Prisma\n〢 **Focus:** Discord bots & automation\n\n' +
-        '🔐 **Private demo fields**\n〢 Email: `owner@wimply.example`\n〢 Phone: `+234 800 000 0000`\n\n' +
-        '╰─〔 ⚡ Fictional demo details 〕─╯'
-      ).setThumbnail(message.client.user?.displayAvatarURL({ size: 256 }) ?? null)]
-    });
-    return true;
-  }
-
-  if (args.length === 0 && message.client.commands?.has(name)) {
-    await message.reply({
-      embeds: [baseEmbed('╭─〔 💬 PREFIX READY 〕─╮', `〢 \`#${name}\` is recognized. Use \`/${name}\` for the full interactive version.`)]
-    });
-    return true;
-  }
-
-  return false;
+  return true;
 }
 
 export default {
   name: 'messageCreate',
   once: false,
-
   async execute(message: Message) {
     if (!message.guildId || message.author.bot || !message.content.trim()) return;
 
     try {
-      const handled = await handlePrefix(message);
-      if (handled) return;
+      if (await handlePrefix(message)) return;
 
       const rules = await getMatchingReactionRules(message.guildId, message.channelId, message.content);
       for (const rule of rules) {
         try {
           await message.react(rule.emoji);
         } catch (error) {
-          log.warn(
-            `Failed to react with ${rule.emoji} for rule ${rule.id}: ${error instanceof Error ? error.message : String(error)}`,
-            'Reaction'
-          );
+          log.warn(`Failed to react with ${rule.emoji} for rule ${rule.id}: ${error instanceof Error ? error.message : String(error)}`, 'Reaction');
         }
       }
     } catch (error) {
