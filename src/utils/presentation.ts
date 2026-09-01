@@ -1,6 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 
-const BRAND = 'Wimply V2.0 • Built by SHAX ⚡';
+const BRAND = 'Wimply V2.0 • Official Bot';
 const DEFAULT_COLOR = 0x5865f2;
 
 type ClientUserLike = {
@@ -34,11 +34,9 @@ export function polishPayload<T extends MessagePayloadLike | string>(payload: T,
   if (typeof payload === 'string' || !payload) return payload;
 
   const objectPayload = payload as MessagePayloadLike;
-  if (!Array.isArray(objectPayload.embeds)) return payload;
+  const embeds = objectPayload.embeds;
+  if (!Array.isArray(embeds)) return payload;
 
-  // Capture the narrowed array in its own variable so TypeScript keeps the
-  // narrowing stable while the embeds are transformed.
-  const embeds: unknown[] = objectPayload.embeds;
   const polished = Object.assign({}, objectPayload, {
     embeds: embeds.map((embed) => decorateEmbed(embed, clientUser))
   });
@@ -57,5 +55,5 @@ export function balanceMessage(current: bigint, required: bigint, action: string
 export const STYLE = {
   title: (emoji: string, text: string) => `╭─〔 ${emoji} ${text.toUpperCase()} 〕─╮`,
   line: (emoji: string, text: string) => `〢 ${emoji} ${text}`,
-  bottom: (emoji = '⚡', text = 'Wimply V2.0 • Built by SHAX') => `╰─〔 ${emoji} ${text} 〕─╯`
+  bottom: (emoji = '⚡', text = 'Wimply V2.0 • Official Bot') => `╰─〔 ${emoji} ${text} 〕─╯`
 };
