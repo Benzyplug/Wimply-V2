@@ -41,12 +41,12 @@ const command: Command = {
     const betDisplay = formatCurrency(betAmount, guildConfig.currencyEmoji);
     const result = await playSlot(interaction.user.id, interaction.guildId, betAmount);
     let current = [randomSymbol(), randomSymbol(), randomSymbol()];
-    let message = await interaction.editReply({ embeds: [spinEmbed(betDisplay, current, 1, 0)] });
+    await interaction.editReply({ embeds: [spinEmbed(betDisplay, current, 1, 0)] });
 
     for (let frame = 2; frame <= 7; frame++) {
       const locked = Math.max(0, frame - 4);
       current = [0, 1, 2].map(index => index < locked ? result.reels[index] : randomSymbol());
-      message = await interaction.editReply({ embeds: [spinEmbed(betDisplay, current, frame, locked)] });
+      await interaction.editReply({ embeds: [spinEmbed(betDisplay, current, frame, locked)] });
       if (frame < 7) await sleep(360);
     }
 
