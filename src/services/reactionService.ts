@@ -4,6 +4,8 @@ import { log } from '../utils/logger.js';
 
 export interface ReactionRuleInput { trigger: string; emoji: string; channelId: string; }
 
+const WIMPLY_LOGO_NAME = 'Wimply_logo';
+
 const BUILT_IN_REACTIONS: Array<{ triggers: string[]; emojis: string[] }> = [
   { triggers: ['dice', '#dice', '/dice'], emojis: ['🎲', '🎯', '🍀', '😈'] },
   { triggers: ['slot', '#slot', '/slot'], emojis: ['🎰', '✨', '🍒', '💎'] },
@@ -31,8 +33,7 @@ const DYNAMIC_REACTIONS = [
   { triggers: ['hello', 'hi ', 'hey ', 'welcome'], emojis: ['👋', '😎', '🤝', '🫡'] }
 ];
 
-const recentReactionChoices = new Map<string, string>();
-function shuffled<T>(items: T[]): T[] { return [...items].sort(() => Math.random() - 0.5); }
+function pickRandom<T>(items: T[]): T | null { return items.length ? items[Math.floor(Math.random() * items.length)] : null; }
 
 export async function addReactionRule(guildId: string, data: ReactionRuleInput) {
   return prisma.reactionRule.create({ data: { guildId, trigger: data.trigger.trim().toLowerCase(), emoji: data.emoji.trim(), channelId: data.channelId } });
@@ -41,41 +42,47 @@ export async function getReactionRules(guildId: string) { return prisma.reaction
 export async function deleteReactionRule(guildId: string, id: string) { const rule = await prisma.reactionRule.findFirst({ where: { id, guildId } }); if (!rule) return null; await prisma.reactionRule.delete({ where: { id: rule.id } }); return rule; }
 export async function clearReactionRules(guildId: string) { const result = await prisma.reactionRule.deleteMany({ where: { guildId } }); return result.count; }
 
-export async function getMatchingReactionRules(guildId: string, channelId: string, content: string) {
-  const normalizedContent = content.toLowerCase();
-  const rules = await prisma.reactionRule.findMany({ where: { guildId, channelId } });
-  const matches = rules.filter(rule => normalizedContent.includes(rule.trigger.toLowerCase()));
-  const seen = new Set(matches.map(rule => rule.emoji));
+function getLogo(message: Message): string | null {
+  return message.guild?.emojis.cache.find(emoji => emoji.name === WIMPLY_LOGO_NAME)?.id ?? null;
+}
 
+async function chooseMatchingEmoji(guildId: string, channelId: string, content: string): Promise<string | null> {
+  const normalized = content.toLowerCase();
+  const customRules = await prisma.reactionRule.findMany({ where: { guildId, channelId } });
+  const customMatch = pickRandom(customRules.filter(rule => normalized.includes(rule.trigger.toLowerCase())).map(rule => rule.emoji));
+  if (customMatch) return customMatch;
+
+  const candidates: string[] = [];
   for (const group of BUILT_IN_REACTIONS) {
-    if (!group.triggers.some(trigger => normalizedContent.includes(trigger))) continue;
-    const key = `${channelId}:${group.triggers[0]}`;
-    const previous = recentReactionChoices.get(key);
-    const choices = shuffled(group.emojis).filter(emoji => emoji !== previous).slice(0, Math.random() < 0.35 ? 2 : 1);
-    if (choices.length) recentReactionChoices.set(key, choices[0]);
-    for (const emoji of choices) {
-      if (seen.has(emoji)) continue;
-      seen.add(emoji);
-      matches.push({ id: `builtin:${group.triggers[0]}:${emoji}`, guildId, channelId, trigger: group.triggers[0], emoji, createdAt: new Date() });
-    }
+    if (group.triggers.some(trigger => normalized.includes(trigger))) candidates.push(...group.emojis);
+  }
+  for (const group of DYNAMIC_REACTIONS) {
+    if (group.triggers.some(trigger => normalized.includes(trigger))) candidates.push(...group.emojis);
+  }
+  return pickRandom([...new Set(candidates)]);
+}
+
+export async function reactToBotMessage(
+  message: Message | null | undefined,
+  guildId: string,
+  channelId: string,
+  triggerContent: string,
+  preferredEmojis?: string[]
+) {
+  if (!message) return;
+
+  const logo = getLogo(message);
+  if (logo) {
+    try { await message.react(logo); }
+    catch (error) { log.warn(`Failed to react with ${WIMPLY_LOGO_NAME}: ${error instanceof Error ? error.message : String(error)}`, 'Reaction'); }
   }
 
-  for (const group of DYNAMIC_REACTIONS) {
-    if (!group.triggers.some(trigger => normalizedContent.includes(trigger))) continue;
-    const choices = shuffled(group.emojis).filter(emoji => !seen.has(emoji)).slice(0, Math.random() < 0.6 ? 2 : 1);
-    for (const emoji of choices) {
-      seen.add(emoji);
-      matches.push({ id: `dynamic:${group.triggers[0]}:${emoji}`, guildId, channelId, trigger: group.triggers[0], emoji, createdAt: new Date() });
-    }
-  }
-  return matches;
+  const matching = preferredEmojis?.length ? pickRandom(preferredEmojis) : await chooseMatchingEmoji(guildId, channelId, triggerContent);
+  if (!matching || matching === logo) return;
+  try { await message.react(matching); }
+  catch (error) { log.warn(`Failed to react with ${matching}: ${error instanceof Error ? error.message : String(error)}`, 'Reaction'); }
 }
 
 export async function reactToMatchingMessage(message: Message | null | undefined, guildId: string, channelId: string, triggerContent: string) {
-  if (!message) return;
-  const rules = await getMatchingReactionRules(guildId, channelId, triggerContent);
-  for (const rule of rules) {
-    try { await message.react(rule.emoji); }
-    catch (error) { log.warn(`Failed to react with ${rule.emoji} for rule ${rule.id}: ${error instanceof Error ? error.message : String(error)}`, 'Reaction'); }
-  }
+  await reactToBotMessage(message, guildId, channelId, triggerContent);
 }
