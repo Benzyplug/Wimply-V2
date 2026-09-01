@@ -3,7 +3,7 @@ import type { ChatInputCommandInteraction, ButtonInteraction } from 'discord.js'
 import { AppError } from './errors.js';
 import { log } from './logger.js';
 
-const VERSION = 'Wimply V2.1.1';
+const BRAND = '╰─〔 ⚡ 〢 Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
 
 function getLogo(interaction: ChatInputCommandInteraction | ButtonInteraction): string {
   return interaction.guild?.emojis.cache.find(emoji => emoji.name === 'Wimply_logo')?.toString() ?? '⚡';
@@ -12,10 +12,10 @@ function getLogo(interaction: ChatInputCommandInteraction | ButtonInteraction): 
 function errorEmbed(message: string, banner: string | null, logo: string) {
   const embed = new EmbedBuilder()
     .setColor(Colors.Red)
-    .setTitle(`╭─〔 ${logo} WIMPLY ERROR 〕─╮`)
-    .setDescription(`〢 **What happened**\n${message}\n\n╭〔 🛠️ Recovery 〕╮\n〢 Check the command arguments and try again.\n〢 Use **/help** or **#help** for the command center.\n╰─〔 ⚡ 〢 Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯`)
+    .setTitle(`${logo} **WIMPLY ERROR**`)
+    .setDescription(`**What happened**\n${message}\n\n**Recovery**\n🛠️ Check the command arguments and try again.\n📖 Use **/help** or **#help** for the command center.`)
     .setTimestamp()
-    .setFooter({ text: VERSION });
+    .setFooter({ text: BRAND });
   if (banner) embed.setImage(banner);
   return embed;
 }
