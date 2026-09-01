@@ -9,35 +9,8 @@ import { reactToGameResult, type GameResultKey } from '../utils/gameReactions.js
 const BLACKJACK_COOLDOWN_MS = 3_000;
 const activeGames = new Map<string, BlackjackGame>();
 export type BlackjackAction = 'hit' | 'stand' | 'double';
-
-export interface BlackjackGame {
-  sessionId: string;
-  userId: string;
-  dbUserId: string;
-  guildId: string;
-  config: GuildConfig;
-  betAmount: bigint;
-  doubled: boolean;
-  deck: string[];
-  playerCards: string[];
-  dealerCards: string[];
-  status: 'playing' | 'finished';
-  createdAt: Date;
-  lastUpdatedAt: Date;
-}
-export interface BlackjackResult {
-  userId: string;
-  outcome: 'win' | 'lose' | 'push' | 'blackjack';
-  playerValue: number;
-  dealerValue: number;
-  playerCards: string[];
-  dealerCards: string[];
-  betAmount: bigint;
-  netAmount: bigint;
-  tax: bigint;
-  message: string;
-  newWallet: bigint;
-}
+export interface BlackjackGame { sessionId: string; userId: string; dbUserId: string; guildId: string; config: GuildConfig; betAmount: bigint; doubled: boolean; deck: string[]; playerCards: string[]; dealerCards: string[]; status: 'playing' | 'finished'; createdAt: Date; lastUpdatedAt: Date; }
+export interface BlackjackResult { userId: string; outcome: 'win' | 'lose' | 'push' | 'blackjack'; playerValue: number; dealerValue: number; playerCards: string[]; dealerCards: string[]; betAmount: bigint; netAmount: bigint; tax: bigint; message: string; newWallet: bigint; }
 const suits = ['♠', '♥', '♦', '♣'];
 const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 function buildDeck() { const deck: string[] = []; for (const suit of suits) for (const rank of ranks) deck.push(`${rank}${suit}`); return deck; }
@@ -57,10 +30,7 @@ export async function createBlackjackGame(userId: string, guildId: string, betAm
   if (betAmount <= 0n) throw new AppError('Bet amount must be greater than zero.');
   if (user.wallet < betAmount) throw new AppError('You do not have enough wallet balance for that bet.');
   await adjustBalance(user.id, { walletDelta: -betAmount }, { source: 'blackjack', amount: -betAmount, type: 'BALANCE' as TransactionType, description: 'Blackjack entry bet' });
-  const deck = buildDeck(); shuffle(deck);
-  const playerCards = [drawCard(deck), drawCard(deck)];
-  const dealerCards = [drawCard(deck), drawCard(deck)];
-  const sessionId = createSessionId();
+  const deck = buildDeck(); shuffle(deck); const playerCards = [drawCard(deck), drawCard(deck)]; const dealerCards = [drawCard(deck), drawCard(deck)]; const sessionId = createSessionId();
   const game: BlackjackGame = { sessionId, userId, dbUserId: user.id, guildId, config, betAmount, doubled: false, deck, playerCards, dealerCards, status: 'playing', createdAt: new Date(), lastUpdatedAt: new Date() };
   activeGames.set(sessionId, game); setCooldown(userId, 'blackjack', BLACKJACK_COOLDOWN_MS); return { game, config };
 }
@@ -71,7 +41,7 @@ async function finalizeGame(game: BlackjackGame) {
   let grossReturn = 0n; let netAmount = -game.betAmount; let message = '';
   if (result === 'lose') message = `❌ You lost ${formatCurrency(game.betAmount, guildConfig.currencyEmoji)}.`;
   else if (result === 'push') { grossReturn = game.betAmount; netAmount = 0n; message = `🤝 Push! Your bet of ${formatCurrency(game.betAmount, guildConfig.currencyEmoji)} is returned.`; }
-  else { grossReturn = result === 'blackjack' ? (game.betAmount * 250n) / 100n : game.betAmount * 2n; netAmount = grossReturn - game.betAmount; message = result === 'blackjack' ? `🃏 Blackjack! You won ${formatCurrency(netAmount, guildConfig.currencyEmoji)}.` : `🎉 You won ${formatCurrency(netAmount, guildConfig.currencyEmoji)}.`; }
+  else { grossReturn = result === 'blackjack' ? (game.betAmount * 150n) / 100n : game.betAmount * 2n; netAmount = grossReturn - game.betAmount; message = result === 'blackjack' ? `🃏 Blackjack! You won ${formatCurrency(netAmount, guildConfig.currencyEmoji)}.` : `🎉 You won ${formatCurrency(netAmount, guildConfig.currencyEmoji)}.`; }
   const updatedUser = grossReturn > 0n ? await adjustBalance(game.dbUserId, { walletDelta: grossReturn }, { source: 'blackjack', amount: grossReturn, type: 'BALANCE' as TransactionType, description: `Blackjack ${result} return` }) : await getOrCreateUser(game.userId, game.guildId).then(value => value.user);
   return { userId: game.userId, outcome: result, playerValue, dealerValue, playerCards: game.playerCards, dealerCards: game.dealerCards, betAmount: game.betAmount, netAmount, tax: 0n, message, newWallet: updatedUser.wallet };
 }
