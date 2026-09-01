@@ -12,20 +12,20 @@ const command: Command = {
     const owner = ownerId ? `<@${ownerId}>` : 'ẞ€ÑZ¥';
     const embed = new EmbedBuilder()
       .setColor(0x5865f2)
-      .setTitle(STYLE.title('👑', 'Wimply Creator'))
-      .setDescription(`〢 **Wimply is created and developed by ${owner}.**\n〢 **ẞ€ÑZ¥** is the founder and developer behind the project.`)
+      .setTitle('👑 WIMPLY CREATOR')
+      .setDescription(`Wimply is created and developed by **ẞ€ÑZ¥** ${owner}.`)
       .setThumbnail(avatar)
-      .setImage(banner)
       .addFields(
-        { name: '╭ 👤 Identity', value: '〢 **Name:** ẞ€ÑZ¥\n〢 **Username:** benzyplug\n〢 **Role:** Founder & Developer\n〢 **Age:** 17', inline: true },
-        { name: '╭ 🌍 Nationality', value: '〢 🇳🇬 **Nigeria**\n〢 🇬🇧 **United Kingdom**', inline: true },
-        { name: '╭ 📍 Location', value: '〢 **London, United Kingdom 🇬🇧**', inline: true },
-        { name: '╭ 🛠️ Development', value: '〢 TypeScript • Node.js • Prisma\n〢 Discord bots & automation', inline: false },
-        { name: '╭ 🎯 Wimply', value: '〢 Founder of Wimply and the developer behind the project.\n〢 **Version:** V2.1.1', inline: false }
+        { name: '👤 Identity', value: '**ẞ€ÑZ¥**\nFounder & Developer\nAge: **17**', inline: true },
+        { name: '🌍 Nationality', value: '🇳🇬 Nigeria\n🇬🇧 United Kingdom', inline: true },
+        { name: '📍 Location', value: 'London, United Kingdom 🇬🇧', inline: true },
+        { name: '🛠️ Development', value: 'TypeScript • Node.js • Prisma\nDiscord bots & automation', inline: false },
+        { name: '🎯 Wimply', value: `Founder of Wimply • **${STYLE.version}**`, inline: false }
       )
+      .setImage(banner)
       .setFooter({ text: STYLE.brand })
       .setTimestamp();
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
   }
 };
 export default command;
