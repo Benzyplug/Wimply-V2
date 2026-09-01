@@ -10,7 +10,7 @@ interface CurrencyUpdate {
   currencyEmoji?: string;
 }
 
-export async function setGuildConfig(guildId: string, data: CurrencyUpdate & Partial<Pick<GuildConfig, 'taxPercent' | 'interestRate' | 'dailyCooldown' | 'weeklyCooldown' | 'monthlyCooldown' | 'workCooldown' | 'crimeCooldown' | 'robCooldown' | 'begCooldown'>>): Promise<GuildConfig> {
+export async function setGuildConfig(guildId: string, data: CurrencyUpdate & Partial<Pick<GuildConfig, 'interestRate' | 'dailyCooldown' | 'weeklyCooldown' | 'monthlyCooldown' | 'workCooldown' | 'crimeCooldown' | 'robCooldown' | 'begCooldown'>>): Promise<GuildConfig> {
   return updateGuildConfig(guildId, data);
 }
 
