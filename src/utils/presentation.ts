@@ -7,7 +7,7 @@ const BOT_VERSION = 'Wimply V2.1.1';
 type ClientUserLike = {
   username?: string;
   displayAvatarURL: (options?: { size?: number }) => string;
-  bannerURL?: (options?: { size?: number }) => string | null;
+  bannerURL?: (options?: { size?: number }) => string | null | undefined;
 };
 type MessagePayloadLike = { embeds?: unknown[]; [key: string]: unknown };
 
