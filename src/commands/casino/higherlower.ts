@@ -2,7 +2,6 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteracti
 import { z } from 'zod';
 import type { Command } from '../../types/command.js';
 import { createDefaultEmbed } from '../../utils/embeds.js';
-import type { Command } from '../../types/command.js';
 import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
 import { validateCommandOptions } from '../../utils/commandValidation.js';
 import { chargeGame, createGameSessionId, getGameCurrency, higherLowerGames } from '../../services/miniGameService.js';
