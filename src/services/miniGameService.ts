@@ -18,6 +18,7 @@ export type MinesState = {
   mines: Set<number>;
   revealed: Set<number>;
   multiplier: number;
+  mineCount: number;
   expiresAt: number;
 };
 
@@ -30,22 +31,12 @@ export async function chargeGame(userId: string, guildId: string, amount: bigint
   if (user.wallet < amount) {
     throw new AppError(`Your balance is **${user.wallet.toLocaleString()} 🪙**. You need **${amount.toLocaleString()} 🪙** to play **${game}**.`);
   }
-  return adjustBalance(user.id, { walletDelta: -amount }, {
-    source: game.toLowerCase(),
-    amount: -amount,
-    type: 'ADMIN',
-    description: `${game} entry bet`
-  });
+  return adjustBalance(user.id, { walletDelta: -amount }, { source: game.toLowerCase(), amount: -amount, type: 'ADMIN', description: `${game} entry bet` });
 }
 
 export async function payGame(userId: string, guildId: string, amount: bigint, game: string) {
   const { user } = await getOrCreateUser(userId, guildId);
-  return adjustBalance(user.id, { walletDelta: amount }, {
-    source: game.toLowerCase(),
-    amount,
-    type: 'ADMIN',
-    description: `${game} payout`
-  });
+  return adjustBalance(user.id, { walletDelta: amount }, { source: game.toLowerCase(), amount, type: 'ADMIN', description: `${game} payout` });
 }
 
 export async function getGameCurrency(guildId: string) {
