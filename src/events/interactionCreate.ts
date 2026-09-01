@@ -31,14 +31,8 @@ function withPolishedResponses<T extends Interaction>(interaction: T): T {
   const clientUser = interaction.client.user;
   return new Proxy(interaction, {
     get(target, property, receiver) {
-      if (property === 'reply') {
-        return (payload: unknown) => (target as any).reply(polishPayload(payload as any, clientUser));
-      }
-      if (property === 'editReply') {
-        return (payload: unknown) => (target as any).editReply(polishPayload(payload as any, clientUser));
-      }
-      if (property === 'followUp') {
-        return (payload: unknown) => (target as any).followUp(polishPayload(payload as any, clientUser));
+      if (property === 'reply' || property === 'editReply' || property === 'followUp' || property === 'update') {
+        return (payload: unknown) => (target as any)[property](polishPayload(payload as any, clientUser));
       }
       return Reflect.get(target, property, receiver);
     }
@@ -128,8 +122,8 @@ export default {
   async execute(interaction: Interaction) {
     try {
       if (interaction.isButton()) {
-        if (await handleMiniGameButton(interaction)) return;
-        await handleBlackjackButtonInteraction(interaction);
+        if (await handleMiniGameButton(withPolishedResponses(interaction))) return;
+        await handleBlackjackButtonInteraction(withPolishedResponses(interaction) as ButtonInteraction);
         return;
       }
 
