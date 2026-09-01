@@ -8,6 +8,7 @@ export type HigherLowerState = {
   bet: bigint;
   current: number;
   multiplier: number;
+  moves: number;
   expiresAt: number;
 };
 
