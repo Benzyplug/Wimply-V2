@@ -14,29 +14,30 @@ const command: Command = {
     await interaction.deferReply();
     const target = interaction.options.getUser('user') ?? interaction.user;
     const { user } = await getOrCreateUser(target.id, interaction.guildId);
-    const gameTransactions = await prisma.economyTransaction.findMany({ where: { userId: user.id, source: { in: ['blackjack','coinflip','dice','higherlower','mines','slot','snailgarden'] } }, select: { amount: true } });
-    const played = gameTransactions.filter(t => t.amount < 0n).length;
-    const wins = gameTransactions.filter(t => t.amount > 0n).length;
+    const transactions = await prisma.economyTransaction.findMany({ where: { userId: user.id, source: { in: ['blackjack','coinflip','dice','higherlower','mines','slot','snailgarden'] } }, select: { amount: true } });
+    const played = transactions.filter(t => t.amount < 0n).length;
+    const wins = transactions.filter(t => t.amount > 0n).length;
     const netWorth = user.wallet + user.bank;
     const checks = [
-      ['🌟 Level Up', user.level >= 2, 'Reach level 2'],
-      ['💰 Money Maker', netWorth >= 10_000n, 'Reach 10,000 net worth'],
-      ['💎 Wealthy', netWorth >= 100_000n, 'Reach 100,000 net worth'],
-      ['🎰 Lucky Winner', wins >= 10, 'Win 10 casino rounds'],
-      ['🎮 Game Regular', played >= 50, 'Play 50 casino rounds'],
-      ['🏆 High Roller', played >= 100, 'Play 100 casino rounds'],
-      ['📊 XP Grinder', user.xp >= 1_000, 'Earn 1,000 XP'],
-      ['🪙 Banked', user.bank >= 50_000n, 'Hold 50,000 in the bank']
-    ] as const;
-    const unlocked = checks.filter(([, ok]) => ok);
-    const locked = checks.filter(([, ok]) => !ok);
+      { icon:'🌟', name:'Level Up', description:'Reach level 2.', current:user.level, target:2 },
+      { icon:'💰', name:'Money Maker', description:'Reach 10,000 net worth.', current:Number(netWorth > 10_000n ? 10_000n : netWorth), target:10_000 },
+      { icon:'💎', name:'Wealthy', description:'Reach 100,000 net worth.', current:Number(netWorth > 100_000n ? 100_000n : netWorth), target:100_000 },
+      { icon:'🎰', name:'Lucky Winner', description:'Win 10 casino rounds.', current:wins, target:10 },
+      { icon:'🎮', name:'Game Regular', description:'Play 50 casino rounds.', current:played, target:50 },
+      { icon:'🏆', name:'High Roller', description:'Play 100 casino rounds.', current:played, target:100 },
+      { icon:'📊', name:'XP Grinder', description:'Earn 1,000 XP.', current:user.xp, target:1_000 },
+      { icon:'🪙', name:'Banked', description:'Hold 50,000 in the bank.', current:Number(user.bank > 50_000n ? 50_000n : user.bank), target:50_000 }
+    ];
+    const progress = (a: typeof checks[number]) => Math.min(100, Math.floor((a.current / a.target) * 100));
+    const lines = checks.map(a => `${a.current >= a.target ? '🏅' : '▫️'} **${a.icon} ${a.name}** — ${a.description}\n   ${Math.min(a.current,a.target).toLocaleString()} / ${a.target.toLocaleString()} • **${progress(a)}%**`).join('\n');
+    const unlocked = checks.filter(a => a.current >= a.target).length;
     const embed = new EmbedBuilder()
       .setColor(0x5865f2)
       .setTitle(`🏆 ${target.username}'s Achievements`)
       .setThumbnail(target.displayAvatarURL({ size: 256 }))
-      .setDescription(`**${unlocked.length}/${checks.length} unlocked**\n\n${unlocked.map(([name]) => `🏅 **${name}**`).join('\n') || 'No achievements unlocked yet.'}`)
-      .addFields({ name: '🔒 NEXT TARGETS', value: locked.map(([name, , requirement]) => `▫️ **${name}** — ${requirement}`).join('\n') || 'Everything unlocked.' })
-      .setFooter({ text: `Net worth ${formatCurrency(netWorth, '🪙')} • Level ${user.level}` });
+      .setDescription(`**${unlocked}/${checks.length} unlocked**\n\n${lines}`)
+      .addFields({ name:'📈 PROFILE PROGRESS', value:`Level **${user.level}** • XP **${user.xp.toLocaleString()}**\nNet worth **${formatCurrency(netWorth, '🪙')}** • Games **${played}** • Wins **${wins}**` })
+      .setTimestamp();
     await interaction.editReply({ embeds: [embed] });
   }
 };
