@@ -5,6 +5,7 @@ import { handleInteractionError } from '../utils/errorHandler.js';
 import { handleBlackjackButtonInteraction } from '../services/blackjackService.js';
 import { higherLowerGames, minesGames, payGame, cleanupExpiredGames } from '../services/miniGameService.js';
 import { formatCurrency } from '../utils/format.js';
+import { polishPayload } from '../utils/presentation.js';
 
 const footer = 'Wimply V2.0 • Built by SHAX ⚡';
 
@@ -26,6 +27,24 @@ function minesRows(id: string, revealed: Set<number>, mines?: Set<number>, casho
   return rows;
 }
 
+function withPolishedResponses<T extends Interaction>(interaction: T): T {
+  const clientUser = interaction.client.user;
+  return new Proxy(interaction, {
+    get(target, property, receiver) {
+      if (property === 'reply') {
+        return (payload: unknown) => (target as any).reply(polishPayload(payload as any, clientUser));
+      }
+      if (property === 'editReply') {
+        return (payload: unknown) => (target as any).editReply(polishPayload(payload as any, clientUser));
+      }
+      if (property === 'followUp') {
+        return (payload: unknown) => (target as any).followUp(polishPayload(payload as any, clientUser));
+      }
+      return Reflect.get(target, property, receiver);
+    }
+  });
+}
+
 async function handleMiniGameButton(interaction: ButtonInteraction) {
   cleanupExpiredGames();
   const parts = interaction.customId.split(':');
@@ -35,7 +54,7 @@ async function handleMiniGameButton(interaction: ButtonInteraction) {
     const id = parts.slice(2).join(':');
     const game = higherLowerGames.get(id);
     if (!game || game.userId !== interaction.user.id) {
-      await interaction.reply({ embeds: [gameEmbed('╭─〔 ⏳ GAME EXPIRED 〕─╮', '〢 This Higher/Lower game is no longer active.')], ephemeral: true });
+      await interaction.reply({ embeds: [gameEmbed('╭─〔 ⏳ GAME EXPIRED 〕─╮', '〢 This Higher/Lower game is no longer active.')] });
       return true;
     }
 
@@ -69,7 +88,7 @@ async function handleMiniGameButton(interaction: ButtonInteraction) {
     const id = action === 'cell' ? parts.slice(2, -1).join(':') : parts.slice(2).join(':');
     const game = minesGames.get(id);
     if (!game || game.userId !== interaction.user.id) {
-      await interaction.reply({ embeds: [gameEmbed('╭─〔 ⏳ GAME EXPIRED 〕─╮', '〢 This Mines game is no longer active.')], ephemeral: true });
+      await interaction.reply({ embeds: [gameEmbed('╭─〔 ⏳ GAME EXPIRED 〕─╮', '〢 This Mines game is no longer active.')] });
       return true;
     }
 
@@ -120,7 +139,7 @@ export default {
           log.warn(`Command not found: ${interaction.commandName}`, 'Interaction');
           return;
         }
-        await command.execute(interaction);
+        await command.execute(withPolishedResponses(interaction) as any);
       }
     } catch (error) {
       await handleInteractionError(interaction as Parameters<typeof handleInteractionError>[0], error);
