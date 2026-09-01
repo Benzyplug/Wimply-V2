@@ -6,14 +6,8 @@ import { isCooldownActive, getCooldownRemaining, setCooldown } from './cooldownM
 import { formatCurrency } from '../utils/format.js';
 import { reactToGameResult, type GameResultKey } from '../utils/gameReactions.js';
 
-// Blackjack's 3:2 payout on a natural blackjack. This used to be read from
-// `GuildConfig.blackjackPayout`, but that column does not exist in the current
-// schema - reading it returned `undefined`, and `Math.floor(undefined * 100)`
-// is `NaN`, which is what caused the
-// "The number NaN cannot be converted to a BigInt" crash in finalizeGame().
-// Hardcoding it here removes the undefined read entirely.
 const BLACKJACK_PAYOUT_MULTIPLIER = 1.5;
-const BLACKJACK_COOLDOWN_MS = 3_000; // anti-spam / anti-double-click, not a real gameplay cooldown
+const BLACKJACK_COOLDOWN_MS = 3_000;
 
 const activeGames = new Map<string, BlackjackGame>();
 
@@ -21,13 +15,9 @@ export type BlackjackAction = 'hit' | 'stand' | 'double';
 
 export interface BlackjackGame {
   sessionId: string;
-  /** Discord snowflake of the player. Used for ownership/permission checks on button interactions. */
   userId: string;
-  /** Internal Prisma User.id (cuid). Used for all database writes (balances, transactions). */
   dbUserId: string;
-  /** Discord guild snowflake. */
   guildId: string;
-  /** Guild economy configuration captured at game start (currency emoji, tax, etc.). */
   config: GuildConfig;
   betAmount: bigint;
   doubled: boolean;
@@ -58,11 +48,7 @@ const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 
 function buildDeck() {
   const deck: string[] = [];
-  for (const suit of suits) {
-    for (const rank of ranks) {
-      deck.push(`${rank}${suit}`);
-    }
-  }
+  for (const suit of suits) for (const rank of ranks) deck.push(`${rank}${suit}`);
   return deck;
 }
 
@@ -73,9 +59,7 @@ function shuffle(deck: string[]) {
   }
 }
 
-function drawCard(deck: string[]) {
-  return deck.pop() as string;
-}
+function drawCard(deck: string[]) { return deck.pop() as string; }
 
 function getCardValue(card: string): number {
   const rank = card.slice(0, -1);
@@ -87,57 +71,29 @@ function getCardValue(card: string): number {
 function evaluateHand(cards: string[]) {
   let total = 0;
   let aces = 0;
-
   for (const card of cards) {
-    const value = getCardValue(card);
-    total += value;
+    total += getCardValue(card);
     if (card.startsWith('A')) aces += 1;
   }
-
   let best = total;
   for (let i = 0; i < aces; i++) {
     const candidate = total + 10 * (i + 1);
-    if (candidate <= 21) {
-      best = candidate;
-    }
+    if (candidate <= 21) best = candidate;
   }
-
-  return {
-    value: best,
-    isSoft: best !== total
-  };
+  return { value: best, isSoft: best !== total };
 }
 
-function createSessionId() {
-  return crypto.randomUUID();
-}
+function createSessionId() { return crypto.randomUUID(); }
 
 function formatHand(cards: string[], hideFirst = false): string {
-  if (hideFirst) {
-    return `🂠 ${cards.slice(1).join(' ')}`;
-  }
+  if (hideFirst) return `🂠 ${cards.slice(1).join(' ')}`;
   return cards.join(' ');
 }
 
 function createActionRow(sessionId: string, canDouble: boolean, disabled = false) {
-  const hitButton = new ButtonBuilder()
-    .setCustomId(`blackjack:${sessionId}:hit`)
-    .setLabel('Hit')
-    .setStyle(ButtonStyle.Primary)
-    .setDisabled(disabled);
-
-  const standButton = new ButtonBuilder()
-    .setCustomId(`blackjack:${sessionId}:stand`)
-    .setLabel('Stand')
-    .setStyle(ButtonStyle.Success)
-    .setDisabled(disabled);
-
-  const doubleButton = new ButtonBuilder()
-    .setCustomId(`blackjack:${sessionId}:double`)
-    .setLabel('Double')
-    .setStyle(ButtonStyle.Secondary)
-    .setDisabled(disabled || !canDouble);
-
+  const hitButton = new ButtonBuilder().setCustomId(`blackjack:${sessionId}:hit`).setLabel('Hit').setStyle(ButtonStyle.Primary).setDisabled(disabled);
+  const standButton = new ButtonBuilder().setCustomId(`blackjack:${sessionId}:stand`).setLabel('Stand').setStyle(ButtonStyle.Success).setDisabled(disabled);
+  const doubleButton = new ButtonBuilder().setCustomId(`blackjack:${sessionId}:double`).setLabel('Double').setStyle(ButtonStyle.Secondary).setDisabled(disabled || !canDouble);
   return new ActionRowBuilder<ButtonBuilder>().addComponents(hitButton, standButton, doubleButton);
 }
 
@@ -156,7 +112,6 @@ function getOutcome(state: BlackjackGame): 'win' | 'lose' | 'push' | 'blackjack'
   const dealerBlackjack = state.dealerCards.length === 2 && dealerValue === 21;
   const playerBusted = playerValue > 21;
   const dealerBusted = dealerValue > 21;
-
   if (playerBusted) return 'lose';
   if (playerBlackjack && !dealerBlackjack) return 'blackjack';
   if (dealerBusted) return 'win';
@@ -170,46 +125,18 @@ export async function createBlackjackGame(userId: string, guildId: string, betAm
     const remaining = getCooldownRemaining(userId, 'blackjack');
     throw new AppError(`Blackjack is still on cooldown. Try again in ${formatDuration(remaining)}.`);
   }
-
   for (const game of activeGames.values()) {
-    if (game.userId === userId && game.status === 'playing') {
-      throw new AppError('You already have an active blackjack session. Finish it before starting a new one.');
-    }
+    if (game.userId === userId && game.status === 'playing') throw new AppError('You already have an active blackjack session. Finish it before starting a new one.');
   }
-
   const { user, config } = await getOrCreateUser(userId, guildId);
-
-  if (betAmount <= 0n) {
-    throw new AppError('Bet amount must be greater than zero.');
-  }
-
-  if (user.wallet < betAmount) {
-    throw new AppError('You do not have enough wallet balance for that bet.');
-  }
-
+  if (betAmount <= 0n) throw new AppError('Bet amount must be greater than zero.');
+  if (user.wallet < betAmount) throw new AppError('You do not have enough wallet balance for that bet.');
   const deck = buildDeck();
   shuffle(deck);
-
   const playerCards = [drawCard(deck), drawCard(deck)];
   const dealerCards = [drawCard(deck), drawCard(deck)];
-
   const sessionId = createSessionId();
-  const game: BlackjackGame = {
-    sessionId,
-    userId,
-    dbUserId: user.id,
-    guildId,
-    config,
-    betAmount,
-    doubled: false,
-    deck,
-    playerCards,
-    dealerCards,
-    status: 'playing',
-    createdAt: new Date(),
-    lastUpdatedAt: new Date()
-  };
-
+  const game: BlackjackGame = { sessionId, userId, dbUserId: user.id, guildId, config, betAmount, doubled: false, deck, playerCards, dealerCards, status: 'playing', createdAt: new Date(), lastUpdatedAt: new Date() };
   activeGames.set(sessionId, game);
   setCooldown(userId, 'blackjack', BLACKJACK_COOLDOWN_MS);
   return { game, config };
@@ -226,113 +153,67 @@ async function finalizeGame(game: BlackjackGame) {
   game.status = 'finished';
   game.lastUpdatedAt = new Date();
   activeGames.delete(game.sessionId);
-
-  const { value: playerValue } = evaluateHand(game.playerCards);
-  const { value: dealerValue } = evaluateHand(game.dealerCards);
+  const playerValue = evaluateHand(game.playerCards).value;
+  const dealerValue = evaluateHand(game.dealerCards).value;
   const result = getOutcome(game);
   const guildConfig = game.config;
-
   let grossReturn = 0n;
   let netAmount = 0n;
-  let tax = 0n;
   let message = '';
-
   if (result === 'lose') {
     netAmount = -game.betAmount;
-    message = `You busted or lost and lost ${formatCurrency(game.betAmount, guildConfig.currencyEmoji)}.`;
+    message = `❌ You lost ${formatCurrency(game.betAmount, guildConfig.currencyEmoji)}.`;
   } else if (result === 'push') {
-    netAmount = 0n;
-    message = `Push! Your bet of ${formatCurrency(game.betAmount, guildConfig.currencyEmoji)} is returned.`;
+    message = `🤝 Push! Your bet of ${formatCurrency(game.betAmount, guildConfig.currencyEmoji)} is returned.`;
   } else {
-    if (result === 'blackjack') {
-      grossReturn = (game.betAmount * BigInt(Math.round(BLACKJACK_PAYOUT_MULTIPLIER * 100))) / 100n;
-    } else {
-      grossReturn = game.betAmount * 2n;
-    }
-
-    const profit = grossReturn - game.betAmount;
-    tax = (profit * BigInt(guildConfig.taxPercent)) / 100n;
-    netAmount = profit - tax;
-    message = `You ${result === 'blackjack' ? 'hit blackjack' : 'won'} ${formatCurrency(netAmount, guildConfig.currencyEmoji)} after tax.`;
+    grossReturn = result === 'blackjack'
+      ? (game.betAmount * 150n) / 100n
+      : game.betAmount * 2n;
+    netAmount = grossReturn - game.betAmount;
+    message = result === 'blackjack'
+      ? `🃏 Blackjack! You won ${formatCurrency(netAmount, guildConfig.currencyEmoji)}.`
+      : `🎉 You won ${formatCurrency(netAmount, guildConfig.currencyEmoji)}.`;
   }
-
-  const updatedUser = await adjustBalance(
-    game.dbUserId,
-    { walletDelta: netAmount },
-    {
-      source: 'blackjack',
-      amount: netAmount,
-      type: 'BALANCE' as TransactionType,
-      description: `Blackjack ${result}`
-    }
-  );
-
+  const updatedUser = await adjustBalance(game.dbUserId, { walletDelta: netAmount }, {
+    source: 'blackjack', amount: netAmount, type: 'BALANCE' as TransactionType, description: `Blackjack ${result}`
+  });
   return {
-    userId: game.userId,
-    outcome: result,
-    playerValue,
-    dealerValue,
-    playerCards: game.playerCards,
-    dealerCards: game.dealerCards,
-    betAmount: game.betAmount,
-    netAmount,
-    tax,
-    message,
-    newWallet: updatedUser.wallet
+    userId: game.userId, outcome: result, playerValue, dealerValue,
+    playerCards: game.playerCards, dealerCards: game.dealerCards,
+    betAmount: game.betAmount, netAmount, tax: 0n, message, newWallet: updatedUser.wallet
   };
 }
 
 export async function handleBlackjackAction(sessionId: string, action: BlackjackAction, userId: string) {
   const game = getGame(sessionId);
-
-  if (game.userId !== userId) {
-    throw new AppError('Only the player who started this game can control it.');
-  }
-
-  if (game.status !== 'playing') {
-    throw new AppError('This blackjack session has already finished.');
-  }
-
+  if (game.userId !== userId) throw new AppError('Only the player who started this game can control it.');
+  if (game.status !== 'playing') throw new AppError('This blackjack session has already finished.');
   if (action === 'double') {
-    if (game.doubled) {
-      throw new AppError('You may only double once.');
-    }
-    if (game.playerCards.length !== 2) {
-      throw new AppError('You can only double on your first move.');
-    }
+    if (game.doubled) throw new AppError('You may only double once.');
+    if (game.playerCards.length !== 2) throw new AppError('You can only double on your first move.');
     game.betAmount *= 2n;
     game.doubled = true;
     game.playerCards.push(drawCard(game.deck));
     return finalizeGame(game);
   }
-
   if (action === 'hit') {
     game.playerCards.push(drawCard(game.deck));
     game.lastUpdatedAt = new Date();
-    const playerValue = evaluateHand(game.playerCards).value;
-    if (playerValue > 21) {
-      return finalizeGame(game);
-    }
+    if (evaluateHand(game.playerCards).value > 21) return finalizeGame(game);
     return null;
   }
-
-  if (action === 'stand') {
-    return finalizeGame(game);
-  }
-
+  if (action === 'stand') return finalizeGame(game);
   throw new AppError('Unknown blackjack action.');
 }
 
 export function buildBlackjackEmbed(game: BlackjackGame, config: { currencyEmoji: string }) {
   const playerValue = evaluateHand(game.playerCards).value;
-  const dealerVisible = formatHand(game.dealerCards, true);
-
   return new EmbedBuilder()
     .setTitle('Blackjack')
     .setDescription(`Bet: ${formatCurrency(game.betAmount, config.currencyEmoji)}${game.doubled ? ' • Doubled' : ''}`)
     .addFields(
       { name: 'Your Hand', value: `${formatHand(game.playerCards)} (${playerValue})`, inline: false },
-      { name: 'Dealer Hand', value: dealerVisible, inline: false }
+      { name: 'Dealer Hand', value: formatHand(game.dealerCards, true), inline: false }
     )
     .setFooter({ text: 'Hit, Stand, or Double to play.' });
 }
@@ -351,50 +232,21 @@ export function buildResultEmbed(result: BlackjackResult, config: { currencyEmoj
 
 export async function handleBlackjackButtonInteraction(interaction: ButtonInteraction) {
   const [prefix, sessionId, action] = interaction.customId.split(':');
-  if (prefix !== 'blackjack' || !sessionId || !action) {
-    throw new AppError('Invalid blackjack button interaction.');
-  }
-
-  if (!['hit', 'stand', 'double'].includes(action)) {
-    throw new AppError('Invalid blackjack action.');
-  }
-
-  // Capture the game's config before it potentially finishes and is removed from activeGames.
+  if (prefix !== 'blackjack' || !sessionId || !action) throw new AppError('Invalid blackjack button interaction.');
+  if (!['hit', 'stand', 'double'].includes(action)) throw new AppError('Invalid blackjack action.');
   const gameBeforeAction = activeGames.get(sessionId);
   const currencyEmoji = gameBeforeAction?.config.currencyEmoji ?? '🪙';
-
   const result = await handleBlackjackAction(sessionId, action as BlackjackAction, interaction.user.id);
-
   if (!result) {
     const game = activeGames.get(sessionId);
-    if (!game) {
-      throw new AppError('Blackjack session expired.');
-    }
-
-    await interaction.update({
-      embeds: [buildBlackjackEmbed(game, { currencyEmoji: game.config.currencyEmoji })],
-      components: [createActionRow(sessionId, !game.doubled, false)]
-    });
+    if (!game) throw new AppError('Blackjack session expired.');
+    await interaction.update({ embeds: [buildBlackjackEmbed(game, { currencyEmoji: game.config.currencyEmoji })], components: [createActionRow(sessionId, !game.doubled, false)] });
     return null;
   }
-
-  await interaction.update({
-    embeds: [buildResultEmbed(result, { currencyEmoji })],
-    components: [createActionRow(sessionId, false, true)]
-  });
-
-  const reactionKey: GameResultKey =
-    result.outcome === 'blackjack'
-      ? 'BLACKJACK_BLACKJACK'
-      : result.outcome === 'win'
-        ? 'BLACKJACK_WIN'
-        : result.outcome === 'push'
-          ? 'BLACKJACK_PUSH'
-          : 'BLACKJACK_LOSS';
-
+  await interaction.update({ embeds: [buildResultEmbed(result, { currencyEmoji })], components: [createActionRow(sessionId, false, true)] });
+  const reactionKey: GameResultKey = result.outcome === 'blackjack' ? 'BLACKJACK_BLACKJACK' : result.outcome === 'win' ? 'BLACKJACK_WIN' : result.outcome === 'push' ? 'BLACKJACK_PUSH' : 'BLACKJACK_LOSS';
   const resultMessage = await interaction.fetchReply().catch(() => null);
   await reactToGameResult(resultMessage, reactionKey);
-
   return result;
 }
 
@@ -406,8 +258,7 @@ function formatDuration(ms: number) {
   const hours = Math.floor(minutes / 60);
   const remainingSeconds = seconds % 60;
   const remainingMinutes = minutes % 60;
-
   if (hours) return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`;
   if (minutes) return `${remainingMinutes}m ${remainingSeconds}s`;
-  return `${remainingSeconds}s`;
+  return `${seconds}s`;
 }
