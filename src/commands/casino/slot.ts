@@ -6,7 +6,6 @@ import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
 import { validateCommandOptions } from '../../utils/commandValidation.js';
 import { playSlot } from '../../services/slotService.js';
 import { getOrCreateGuildConfig } from '../../services/guildConfigService.js';
-import { reactToGameResult } from '../../utils/gameReactions.js';
 
 const slotSchema = z.object({ amount: z.string().min(1, 'Amount is required') });
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
@@ -66,8 +65,7 @@ const command: Command = {
         { name: '🪙 Wallet Change', value: formatCurrency(result.netAmount, guildConfig.currencyEmoji), inline: true },
         { name: '💰 New Wallet', value: formatCurrency(result.newWallet, guildConfig.currencyEmoji), inline: true }
       );
-    const resultMessage = await interaction.editReply({ embeds: [resultEmbed] });
-    await reactToGameResult(resultMessage, result.jackpot ? 'SLOT_JACKPOT' : result.won ? 'SLOT_WIN' : 'SLOT_LOSS');
+    await interaction.editReply({ embeds: [resultEmbed] });
   }
 };
 export default command;
