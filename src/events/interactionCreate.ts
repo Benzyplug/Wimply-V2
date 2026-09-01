@@ -1,9 +1,10 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Colors, version as discordJsVersion } from 'discord.js';
 import type { ButtonInteraction, Interaction } from 'discord.js';
+import { log } from '../utils/logger.js';
 import { handleInteractionError } from '../utils/errorHandler.js';
 import { handleBlackjackButtonInteraction } from '../services/blackjackService.js';
 import { higherLowerGames, minesGames, payGame, cleanupExpiredGames } from '../services/miniGameService.js';
-import { reactToGameResult } from '../utils/gameReactions.js';
+import { reactToMatchingMessage } from '../services/reactionService.js';
 import { formatCurrency } from '../utils/format.js';
 import { polishPayload } from '../utils/presentation.js';
 
@@ -55,4 +56,4 @@ async function handleMiniGameButton(interaction: ButtonInteraction) {
   }
   return false;
 }
-export default { name: 'interactionCreate', once: false, async execute(interaction: Interaction) { try { if (interaction.isButton()) { if (await handleMiniGameButton(withPolishedResponses(interaction))) return; await handleBlackjackButtonInteraction(withPolishedResponses(interaction) as ButtonInteraction); return; } if (interaction.isChatInputCommand()) { const command = interaction.client.commands?.get(interaction.commandName); if (!command) return; await command.execute(withPolishedResponses(interaction) as any); if (interaction.guildId && (interaction.replied || interaction.deferred)) { try { const response = await interaction.fetchReply(); await reactToGameResult(response, 'GENERIC'); } catch {} } } } catch (error) { await handleInteractionError(interaction as Parameters<typeof handleInteractionError>[0], error); } } };
+export default { name: 'interactionCreate', once: false, async execute(interaction: Interaction) { try { if (interaction.isButton()) { if (await handleMiniGameButton(withPolishedResponses(interaction))) return; await handleBlackjackButtonInteraction(withPolishedResponses(interaction) as ButtonInteraction); return; } if (interaction.isChatInputCommand()) { const command = interaction.client.commands?.get(interaction.commandName); if (!command) { log.warn(`Command not found: ${interaction.commandName}`, 'Interaction'); return; } await command.execute(withPolishedResponses(interaction) as any); if (interaction.guildId && (interaction.replied || interaction.deferred)) { try { const response = await interaction.fetchReply(); await reactToMatchingMessage(response, interaction.guildId, interaction.channelId, `/${interaction.commandName}`); } catch (error) { log.warn(`Unable to apply response reactions for /${interaction.commandName}: ${error instanceof Error ? error.message : String(error)}`, 'Reaction'); } } } } catch (error) { await handleInteractionError(interaction as Parameters<typeof handleInteractionError>[0], error); } } };
