@@ -14,20 +14,21 @@ const reels = ['7️⃣', '💎', '🔔', '🍊', '🍒', '⭐'];
 const randomSymbol = () => reels[Math.floor(Math.random() * reels.length)];
 
 function reelColumn(symbol: string, offset: number, spinning: boolean) {
-  const strip = Array.from({ length: 5 }, (_, index) => spinning ? (index === 2 ? symbol : reels[(reels.indexOf(symbol) + index + offset) % reels.length]) : symbol);
-  return `┌─────┐\n│ ${strip[0]} │\n│ ${strip[1]} │\n│ ${strip[2]} │\n│ ${strip[3]} │\n│ ${strip[4]} │\n└─────┘`;
+  const symbolIndex = Math.max(0, reels.indexOf(symbol));
+  const strip = Array.from({ length: 5 }, (_, index) => spinning ? reels[(symbolIndex + index + offset) % reels.length] : symbol);
+  return `┌───────┐\n│ ${strip[0]} │\n│ ${strip[1]} │\n│ ${strip[2]} │\n│ ${strip[3]} │\n│ ${strip[4]} │\n└───────┘`;
 }
 
 function spinEmbed(betDisplay: string, current: string[], frame: number, locked: number) {
   return createDefaultEmbed()
     .setTitle('╭─〔 🎰 WIMPLY SLOTS 〕─╮')
-    .setDescription(`〢 **Bet:** ${betDisplay}\n〢 **Vertical reel spin** ↓\n〢 ${locked ? `🔒 Reel${locked > 1 ? 's' : ''} locked: **${locked}/3**` : '⚡ Starting all reels…'}\n\n${frame === 7 ? '✨ All reels locked!' : '🔄 Reels are spinning…'}`)
+    .setDescription(`〢 **Bet:** ${betDisplay}\n〢 **LIVE REELS** ↓\n〢 ${locked ? `🔒 Reels locked: **${locked}/3**` : '⚡ All reels spinning…'}\n\n${locked === 3 ? '💎 RESULT LOCKED' : '🔄 SPINNING…'}`)
     .addFields(
-      { name: '🎰 REEL 1', value: reelColumn(current[0], frame, locked >= 1), inline: true },
-      { name: '🎰 REEL 2', value: reelColumn(current[1], frame + 2, locked >= 2), inline: true },
-      { name: '🎰 REEL 3', value: reelColumn(current[2], frame + 4, locked >= 3), inline: true },
+      { name: '🎰 REEL 1', value: reelColumn(current[0], frame * 2, locked >= 1), inline: true },
+      { name: '🎰 REEL 2', value: reelColumn(current[1], frame * 3, locked >= 2), inline: true },
+      { name: '🎰 REEL 3', value: reelColumn(current[2], frame * 4, locked >= 3), inline: true },
     )
-    .setFooter({ text: `〢 Spin ${frame}/7 • ${locked === 3 ? 'Result locked' : 'Spinning down…'}` });
+    .setFooter({ text: `🎰 Spin ${frame}/6 • ${locked === 3 ? 'All reels stopped' : 'Rolling…'}` });
 }
 
 const command: Command = {
@@ -43,11 +44,15 @@ const command: Command = {
     let current = [randomSymbol(), randomSymbol(), randomSymbol()];
     await interaction.editReply({ embeds: [spinEmbed(betDisplay, current, 1, 0)] });
 
-    for (let frame = 2; frame <= 7; frame++) {
-      const locked = Math.max(0, frame - 4);
-      current = [0, 1, 2].map(index => index < locked ? result.reels[index] : randomSymbol());
+    const lockOrder = [0, 2, 1];
+    for (let frame = 2; frame <= 6; frame++) {
+      const locked = Math.max(0, Math.min(3, frame - 3));
+      current = [0, 1, 2].map(index => {
+        const lockPosition = lockOrder.indexOf(index);
+        return lockPosition !== -1 && lockPosition < locked ? result.reels[index] : randomSymbol();
+      });
       await interaction.editReply({ embeds: [spinEmbed(betDisplay, current, frame, locked)] });
-      if (frame < 7) await sleep(360);
+      if (frame < 6) await sleep(130);
     }
 
     const resultEmbed = createDefaultEmbed()
