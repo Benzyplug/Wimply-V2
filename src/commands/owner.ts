@@ -4,13 +4,15 @@ import type { Command } from '../types/command.js';
 const command: Command = {
   data: new SlashCommandBuilder().setName('owner').setDescription('View Wimply creator information'),
   async execute(interaction: ChatInputCommandInteraction) {
-    const avatar = interaction.client.user.displayAvatarURL({ size: 512 });
+    const botUser = await interaction.client.user.fetch(true);
+    const avatar = botUser.displayAvatarURL({ size: 1024 });
+    const banner = botUser.bannerURL({ size: 2048 }) ?? avatar;
     const ownerId = process.env.OWNER_DISCORD_ID;
     const mention = ownerId ? `<@${ownerId}>` : '**Benzy**';
     const embed = new EmbedBuilder()
       .setColor(0x5865f2)
       .setTitle('╭─〔 👑 WIMPLY CREATOR 〕─╮')
-      .setDescription(`〢 **Wimply is created and developed by ${mention}.**\n〢 This is the official creator profile.`)
+      .setDescription(`〢 **Wimply is created and developed by ${mention}.**\n〢 The person behind the project and its development.`)
       .setThumbnail(avatar)
       .addFields(
         { name: '╭ 👤 Identity', value: '〢 **Name:** Benzy\n〢 **Username:** benzyplug\n〢 **Role:** Founder & Developer\n〢 **Age:** 17', inline: true },
@@ -19,8 +21,8 @@ const command: Command = {
         { name: '╭ 🛠️ Development', value: '〢 TypeScript • Node.js • Prisma\n〢 Discord bots & automation', inline: false },
         { name: '╭ 🎯 Wimply', value: '〢 Founder of Wimply and the developer behind the project.\n〢 **Project:** Wimply V2.0', inline: false }
       )
-      .setImage(avatar)
-      .setFooter({ text: 'Wimply V2.0 • Made by Benzy ⚡〢' })
+      .setImage(banner)
+      .setFooter({ text: '╰─〔 ⚡ 〢 Made by Benzy 〢 〕─╯' })
       .setTimestamp();
     await interaction.reply({ embeds: [embed] });
   }
