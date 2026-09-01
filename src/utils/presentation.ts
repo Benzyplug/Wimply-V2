@@ -1,9 +1,13 @@
 import { EmbedBuilder } from 'discord.js';
 
-const BRAND = 'Wimply V2.0 • Made by Benzy ⚡〢';
+const BRAND = '╰─〔 ⚡ 〢 Made by Benzy 〢 〕─╯';
 const DEFAULT_COLOR = 0x5865f2;
 
-type ClientUserLike = { username?: string; displayAvatarURL: (options?: { size?: number }) => string };
+type ClientUserLike = {
+  username?: string;
+  displayAvatarURL: (options?: { size?: number }) => string;
+  bannerURL?: (options?: { size?: number }) => string | null;
+};
 type MessagePayloadLike = { embeds?: unknown[]; [key: string]: unknown };
 
 export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null) {
@@ -13,6 +17,10 @@ export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null
   if (!embed.data.footer) embed.setFooter({ text: BRAND });
   if (!embed.data.author && clientUser) embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
   if (!embed.data.thumbnail && clientUser) embed.setThumbnail(clientUser.displayAvatarURL({ size: 128 }));
+  if (!embed.data.image && clientUser?.bannerURL) {
+    const banner = clientUser.bannerURL({ size: 1024 });
+    if (banner) embed.setImage(banner);
+  }
   return embed;
 }
 
@@ -32,5 +40,5 @@ export function balanceMessage(current: bigint, required: bigint, action: string
 export const STYLE = {
   title: (emoji: string, text: string) => `╭─〔 ${emoji} ${text.toUpperCase()} 〕─╮`,
   line: (emoji: string, text: string) => `〢 ${emoji} ${text}`,
-  bottom: (emoji = '⚡', text = 'Wimply V2.0 • Made by Benzy') => `╰─〔 ${emoji} ${text} 〕─╯`
+  bottom: (emoji = '⚡', text = '〢 Made by Benzy 〢') => `╰─〔 ${emoji} ${text} 〕─╯`
 };
