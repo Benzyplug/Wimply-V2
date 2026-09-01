@@ -21,13 +21,12 @@ model GuildConfig {
   crimeCooldown   Int            @default(3)
   robCooldown     Int            @default(4)
   begCooldown     Int            @default(1)
-  taxPercent      Int            @default(10)
   interestRate    Float          @default(0.01)
   xpEnabled       Boolean        @default(true)
   xpPerMessage    Int            @default(5)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
-  items           Item[]         
+  items           Item[]
   reactionRules   ReactionRule[]
   users           User[]
 }
