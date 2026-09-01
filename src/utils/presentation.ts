@@ -5,34 +5,31 @@ const DEFAULT_COLOR = 0x5865f2;
 const BOT_VERSION = 'Wimply V2.1.1';
 const LEGACY_STAMP = /╰─〔\s*⚡\s*〢\s*Wimply V2\.1\.1\s*•\s*Made by ẞ€ÑZ¥\s*〢\s*⚡\s*〕─╯/g;
 const LEGACY_FOOTER = /╰─〔\s*⚡\s*〢\s*Made by ẞ€ÑZ¥\s*〢\s*⚡\s*〕─╯/g;
-const TOP_BOX = /╭─〔\s*([^〕]+?)\s*〕─╮/g;
-const BOTTOM_BOX = /╰─〔\s*([^〕]+?)\s*〕─╯/g;
+const LEGACY_BOX = /[╭╮╰╯]─〔[^〕]*〕─[╮╯]/g;
 
 type ClientUserLike = {
   username?: string;
   displayAvatarURL: (options?: { size?: number }) => string;
-  bannerURL?: (options?: { size?: number }) => string | null | undefined;
 };
 type MessagePayloadLike = { embeds?: unknown[]; content?: string; [key: string]: unknown };
 
 function cleanText(value: string | null | undefined) {
   if (!value) return value;
-  return value.replace(LEGACY_STAMP, '').replace(LEGACY_FOOTER, '').replace(TOP_BOX, '$1').replace(BOTTOM_BOX, '$1').replace(/\n{3,}/g, '\n\n').trim();
+  return value.replace(LEGACY_STAMP, '').replace(LEGACY_FOOTER, '').replace(LEGACY_BOX, '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null) {
   const embed = input instanceof EmbedBuilder ? EmbedBuilder.from(input) : EmbedBuilder.from(input as any);
   if (!embed.data.color) embed.setColor(DEFAULT_COLOR);
   if (!embed.data.timestamp) embed.setTimestamp();
-  const cleanedTitle = cleanText(embed.data.title);
-  if (cleanedTitle !== undefined) embed.setTitle(cleanedTitle);
-  const cleanedDescription = cleanText(embed.data.description);
-  if (cleanedDescription !== undefined) embed.setDescription(cleanedDescription);
-  const banner = clientUser?.bannerURL?.({ size: 1024 }) ?? null;
-  embed.setFooter(banner ? { text: BRAND, iconURL: banner } : { text: BRAND });
+  const title = cleanText(embed.data.title);
+  const description = cleanText(embed.data.description);
+  if (title !== undefined) embed.setTitle(title);
+  if (description !== undefined) embed.setDescription(description);
+  // Native Discord footer is the single source of creator branding.
+  embed.setFooter({ text: BRAND });
   if (!embed.data.author && clientUser) embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
-  if (!embed.data.thumbnail && clientUser) embed.setThumbnail(clientUser.displayAvatarURL({ size: 128 }));
-  if (!embed.data.image && banner) embed.setImage(banner);
+  // Do not inject the bot banner into normal messages. Owner, bot and error views opt into it explicitly.
   return embed;
 }
 
