@@ -1,6 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 
-const BRAND = '╰─〔 ⚡ 〢 ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
+const BRAND = '╰─〔 ⚡ 〢 Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
 const DEFAULT_COLOR = 0x5865f2;
 const BOT_VERSION = 'Wimply V2.1.1';
 
@@ -19,7 +19,7 @@ export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null
   if (!embed.data.author && clientUser) embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
   if (!embed.data.thumbnail && clientUser) embed.setThumbnail(clientUser.displayAvatarURL({ size: 128 }));
   if (!embed.data.image && clientUser?.bannerURL) {
-    const banner = clientUser.bannerURL({ size: 1024 });
+    const banner = clientUser.bannerURL({ size: 2048 });
     if (banner) embed.setImage(banner);
   }
   return embed;
