@@ -7,7 +7,7 @@ function errorEmbed(message: string) {
   return new EmbedBuilder()
     .setColor(Colors.Red)
     .setTitle('╭─〔 🚫 WIMPLY ERROR 〕─╮')
-    .setDescription(`〢 ${message}\n\n╰─〔 Try again or check `/help` 〕─╯`)
+    .setDescription(`〢 **What happened**\n${message}\n\n╭〔 🛠️ Recovery 〕╮\n〢 Check the command arguments and try again.\n〢 Use **/help** or **#help** for the command center.\n╰─〔 ⚡ Wimply V2.0 • Built by SHAX 〕─╯`)
     .setTimestamp()
     .setFooter({ text: 'Wimply V2.0 • Built by SHAX ⚡' });
 }
@@ -30,7 +30,7 @@ export async function handleInteractionError(
   console.error('========== FULL ERROR ==========');
   const message = error instanceof AppError
     ? error.message
-    : 'Something went wrong while processing that action. Your balance was not intentionally changed by the error handler.';
+    : 'Something went wrong while processing that action. No intentional balance change was made by the error handler.';
 
   if (error instanceof Error) {
     console.error(error);
