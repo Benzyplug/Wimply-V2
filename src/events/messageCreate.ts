@@ -10,7 +10,7 @@ import { polishPayload, STYLE } from '../utils/presentation.js';
 const PREFIXES = ['#', '!'];
 const ALIASES: Record<string, string> = {
   hl: 'higherlower', higher: 'higherlower', lower: 'higherlower', sg: 'snailgarden', snail: 'snailgarden', bj: 'blackjack', cf: 'coinflip', lb: 'leaderboard', inv: 'inventory', bal: 'balance', p: 'profile', sh: 'shop',
-  '8b': 'eightball', r: 'roll', pick: 'choose', f: 'fortune', nw: 'networth'
+  '8b': 'eightball', r: 'roll', pick: 'choose', f: 'fortune', nw: 'networth', avi: 'aviator', av: 'aviator', ach: 'achievements', pbg: 'profilebackground'
 };
 const xpCooldown = new Map<string, number>();
 
@@ -18,7 +18,7 @@ type PrefixOption = { type: number; name: string; required?: boolean; options?: 
 type PrefixCommandJson = { name: string; options?: PrefixOption[] };
 type PrefixAdapterState = { interaction: Parameters<Command['execute']>[0]; getReply: () => Message | null };
 
-function baseEmbed(title: string, description: string) { return new EmbedBuilder().setColor(0x5865f2).setTitle(title).setDescription(`${description}\n\n${STYLE.stamp}`).setTimestamp().setFooter({ text: STYLE.brand }); }
+function baseEmbed(title: string, description: string) { return new EmbedBuilder().setColor(0x5865f2).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: STYLE.brand }); }
 function tokenize(input: string) { const matches = input.match(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+/g) ?? []; return matches.map(token => (token.startsWith('"') || token.startsWith("'")) ? token.slice(1, -1) : token); }
 function isUserToken(value: string | undefined) { return !!value && (/^<@!?\d{15,22}>$/.test(value) || /^\d{15,22}$/.test(value)); }
 function resolveCommandShape(command: Command, tokens: string[]) {
@@ -45,9 +45,9 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
 async function reactToPrefixReply(message: Message, triggerContent: string, reply: Message | null) { if (!reply || !message.guildId) return; await reactToMatchingMessage(reply, message.guildId, message.channelId, `${triggerContent}\n${reply.embeds.map(embed => `${embed.title ?? ''} ${embed.description ?? ''}`).join(' ')}`); }
 async function handlePrefix(message: Message): Promise<boolean> { const content = message.content.trim(); const prefix = PREFIXES.find(candidate => content.startsWith(candidate)); if (!prefix) return false; const tokens = tokenize(content.slice(prefix.length).trim()); const rawName = tokens.shift()?.toLowerCase(); if (!rawName) return false; const name = ALIASES[rawName] ?? rawName; if (name === 'help' || name === 'commands') { const commands = message.client.commands ? [...message.client.commands.keys()].sort() : []; const groups = [
     ['💰 ECONOMY', ['balance','beg','crime','daily','deposit','leaderboard','monthly','networth','pay','rob','weekly','withdraw','work']],
-    ['🎰 CASINO', ['blackjack','coinflip','dice','higherlower','mines','slot','snailgarden']],
+    ['🎰 CASINO', ['aviator','blackjack','coinflip','dice','higherlower','mines','slot','snailgarden']],
     ['🎒 INVENTORY & SHOP', ['inventory','give','drop','use','shop','buy','sell']],
-    ['🎭 FUN & SOCIAL', ['aura','choose','eightball','fortune','roll','ship']],
+    ['🎭 FUN & SOCIAL', ['achievements','aura','choose','eightball','fortune','profile','profilebackground','roll','ship']],
     ['⚙️ SERVER', ['config','dashboard','economy','item']],
     ['🤖 WIMPLY', ['bot','owner','ping','help']]
   ] as const;
