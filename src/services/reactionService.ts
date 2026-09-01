@@ -79,8 +79,7 @@ export async function getMatchingReactionRules(guildId: string, channelId: strin
         channelId,
         trigger: group.triggers[0],
         emoji,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: new Date()
       });
     }
   }
