@@ -1,6 +1,9 @@
 import { AppError } from '../utils/errors.js';
+import { getOrCreateUser, adjustBalance } from './userService.js';
+import type { TransactionType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from './database.js';
-import type { GuildConfig, User, TransactionType } from '@prisma/client';
+import type { GuildConfig, User } from '@prisma/client';
 import { log } from '../utils/logger.js';
 
 interface UserToken {
@@ -8,43 +11,27 @@ interface UserToken {
   config: GuildConfig;
 }
 
-export async function getOrCreateUser(
-  discordId: string,
-  guildId: string
-): Promise<UserToken> {
+export async function getOrCreateUser(discordId: string, guildId: string): Promise<UserToken> {
   const config = await prisma.guildConfig.upsert({
     where: { guildId },
     update: {},
-    create: {
-      guildId,
-      name: 'Default Server'
-    }
+    create: { guildId, name: 'Default Server' }
   });
 
   let user = await prisma.user.findUnique({
-    where: {
-      discordId_guildId: {
-        discordId,
-        guildId: config.id
-      }
-    }
+    where: { discordId_guildId: { discordId, guildId: config.id } }
   });
 
   if (!user) {
-    user = await prisma.user.create({
-      data: {
-        discordId,
-        guildId: config.id
-      }
-    });
-
-    log.info(
-      `Created user profile for ${discordId} in guild ${guildId}`,
-      'UserService'
-    );
+    user = await prisma.user.create({ data: { discordId, guildId: config.id } });
+    log.info(`Created user profile for ${discordId} in guild ${guildId}`, 'UserService');
   }
 
   return { user, config };
+}
+
+function isSerializationConflict(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
 }
 
 export async function adjustBalance(
@@ -67,133 +54,68 @@ export async function adjustBalance(
     description: string;
   }
 ) {
-  return prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({
-      where: { id: userId }
-    });
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({ where: { id: userId } });
+        if (!user) throw new AppError('User not found.');
 
-    if (!user) {
-      throw new AppError('User not found.');
+        const wallet = user.wallet + (data.walletDelta ?? 0n);
+        const bank = user.bank + (data.bankDelta ?? 0n);
+        if (wallet < 0n || bank < 0n) {
+          const required = data.walletDelta && data.walletDelta < 0n ? -data.walletDelta : 0n;
+          throw new AppError(`╭─〔 💳 BALANCE CHECK 〕─╮\n〢 **Wallet:** ${user.wallet.toLocaleString()} 🪙\n〢 **Required:** ${required.toLocaleString()} 🪙\n〢 **Short by:** ${required > user.wallet ? (required - user.wallet).toLocaleString() : '0'} 🪙\n╰─〔 📈 Earn more and try again 〕─╯`);
+        }
+
+        const updatePayload: Record<string, unknown> = {};
+        if (data.walletDelta !== undefined) updatePayload.wallet = { increment: data.walletDelta };
+        if (data.bankDelta !== undefined) updatePayload.bank = { increment: data.bankDelta };
+        if (data.lastDaily !== undefined) updatePayload.lastDaily = data.lastDaily;
+        if (data.lastWeekly !== undefined) updatePayload.lastWeekly = data.lastWeekly;
+        if (data.lastMonthly !== undefined) updatePayload.lastMonthly = data.lastMonthly;
+        if (data.lastWork !== undefined) updatePayload.lastWork = data.lastWork;
+        if (data.lastCrime !== undefined) updatePayload.lastCrime = data.lastCrime;
+        if (data.lastRob !== undefined) updatePayload.lastRob = data.lastRob;
+        if (data.lastBeg !== undefined) updatePayload.lastBeg = data.lastBeg;
+
+        const updatedUser = await tx.user.update({ where: { id: userId }, data: updatePayload });
+        await tx.economyTransaction.create({
+          data: {
+            userId,
+            source: transaction.source,
+            amount: transaction.amount,
+            balanceAfter: updatedUser.wallet + updatedUser.bank,
+            type: transaction.type,
+            description: transaction.description
+          }
+        });
+        return updatedUser;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (!isSerializationConflict(error) || attempt === 3) throw error;
+      await new Promise(resolve => setTimeout(resolve, 50 * attempt));
     }
+  }
 
-    const wallet = user.wallet + (data.walletDelta ?? 0n);
-    const bank = user.bank + (data.bankDelta ?? 0n);
+  throw new Error('Balance transaction failed after retries.');
+}
 
-    if (wallet < 0n || bank < 0n) {
-      throw new AppError('Balances cannot be negative.');
-    }
-
-    const updatePayload: Record<string, unknown> = {};
-
-    if (data.walletDelta !== undefined) {
-      updatePayload.wallet = { increment: data.walletDelta };
-    }
-
-    if (data.bankDelta !== undefined) {
-      updatePayload.bank = { increment: data.bankDelta };
-    }
-
-    if (data.lastDaily !== undefined) {
-      updatePayload.lastDaily = data.lastDaily;
-    }
-
-    if (data.lastWeekly !== undefined) {
-      updatePayload.lastWeekly = data.lastWeekly;
-    }
-
-    if (data.lastMonthly !== undefined) {
-      updatePayload.lastMonthly = data.lastMonthly;
-    }
-
-    if (data.lastWork !== undefined) {
-      updatePayload.lastWork = data.lastWork;
-    }
-
-    if (data.lastCrime !== undefined) {
-      updatePayload.lastCrime = data.lastCrime;
-    }
-
-    if (data.lastRob !== undefined) {
-      updatePayload.lastRob = data.lastRob;
-    }
-
-    if (data.lastBeg !== undefined) {
-      updatePayload.lastBeg = data.lastBeg;
-    }
-
-    const updatedUser = await tx.user.update({
-      where: { id: userId },
-      data: updatePayload
-    });
-
-    await tx.economyTransaction.create({
-      data: {
-        userId,
-        source: transaction.source,
-        amount: transaction.amount,
-        balanceAfter: updatedUser.wallet + updatedUser.bank,
-        type: transaction.type,
-        description: transaction.description
-      }
-    });
-
-    return updatedUser;
+export async function updateWallet(userId: string, amount: bigint, description: string): Promise<void> {
+  await adjustBalance(userId, { walletDelta: amount }, {
+    source: 'wallet', amount, type: 'BALANCE', description
   });
 }
 
-export async function updateWallet(
-  userId: string,
-  amount: bigint,
-  description: string
-): Promise<void> {
-  await adjustBalance(
-    userId,
-    { walletDelta: amount },
-    {
-      source: 'wallet',
-      amount,
-      type: 'BALANCE',
-      description
-    }
-  );
+export async function depositToBank(userId: string, amount: bigint): Promise<void> {
+  await adjustBalance(userId, { walletDelta: -amount, bankDelta: amount }, {
+    source: 'deposit', amount, type: 'DEPOSIT', description: 'Deposit to bank'
+  });
 }
 
-export async function depositToBank(
-  userId: string,
-  amount: bigint
-): Promise<void> {
-  await adjustBalance(
-    userId,
-    {
-      walletDelta: -amount,
-      bankDelta: amount
-    },
-    {
-      source: 'deposit',
-      amount,
-      type: 'DEPOSIT',
-      description: 'Deposit to bank'
-    }
-  );
-}
-
-export async function withdrawFromBank(
-  userId: string,
-  amount: bigint
-): Promise<void> {
-  await adjustBalance(
-    userId,
-    {
-      walletDelta: amount,
-      bankDelta: -amount
-    },
-    {
-      source: 'withdraw',
-      amount,
-      type: 'WITHDRAW',
-      description: 'Withdraw from bank'
-    }
-  );
+export async function withdrawFromBank(userId: string, amount: bigint): Promise<void> {
+  await adjustBalance(userId, { walletDelta: amount, bankDelta: -amount }, {
+    source: 'withdraw', amount, type: 'WITHDRAW', description: 'Withdraw from bank'
+  });
 }
 
 export async function createTransactionOnly(
