@@ -8,10 +8,10 @@ import { chargeGame, getGameCurrency, higherLowerGames } from '../../services/mi
 
 const schema = z.object({ amount: z.string().min(1) });
 
-const buttons = (id: string) => new ActionRowBuilder<ButtonBuilder>().addComponents(
+const buttons = (id: string, moves = 0) => new ActionRowBuilder<ButtonBuilder>().addComponents(
   new ButtonBuilder().setCustomId(`hl:higher:${id}`).setLabel('Higher ⬆️').setStyle(ButtonStyle.Primary),
   new ButtonBuilder().setCustomId(`hl:lower:${id}`).setLabel('Lower ⬇️').setStyle(ButtonStyle.Secondary),
-  new ButtonBuilder().setCustomId(`hl:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success)
+  new ButtonBuilder().setCustomId(`hl:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success).setDisabled(moves < 1)
 );
 
 const command: Command = {
@@ -27,8 +27,8 @@ const command: Command = {
     const currency = await getGameCurrency(interaction.guildId);
     const id = `${interaction.guildId}:${interaction.user.id}`;
     const current = Math.floor(Math.random() * 90) + 5;
-    higherLowerGames.set(id, { userId: interaction.user.id, guildId: interaction.guildId, bet, current, multiplier: 1, expiresAt: Date.now() + 5 * 60_000 });
-    await interaction.reply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🎯 HIGHER / LOWER 〕─╮').setDescription(`〢 Starting bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Current number: **${current}**\n〢 Secured multiplier: **1.00x**\n\nChoose whether the next number goes **higher** or **lower**.\n\n╰─〔 💰 Cash out whenever you want 〕─╯`)], components: [buttons(id)] });
+    higherLowerGames.set(id, { userId: interaction.user.id, guildId: interaction.guildId, bet, current, multiplier: 1, moves: 0, expiresAt: Date.now() + 5 * 60_000 });
+    await interaction.reply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🎯 HIGHER / LOWER 〕─╮').setDescription(`〢 Starting bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Current number: **${current}**\n〢 Secured multiplier: **1.00x**\n〢 Moves: **0**\n\nChoose whether the next number goes **higher** or **lower**.\n\n╰─〔 🎮 Make a move before cashing out 〕─╯`)], components: [buttons(id)] });
   }
 };
 
