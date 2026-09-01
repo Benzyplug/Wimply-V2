@@ -22,13 +22,13 @@ const command: Command = {
     await interaction.deferReply();
     const guildConfig = await getOrCreateGuildConfig(interaction.guildId);
     const betDisplay = formatCurrency(betAmount, guildConfig.currencyEmoji);
-    // Resolve once, then animate toward the actual result so the visual never disagrees with the wager.
     const result = await playSlot(interaction.user.id, interaction.guildId, betAmount);
-    const frames = [1, 2, 3, 4, 5];
+    const frames = [1, 2, 3, 4, 5, 6, 7];
     for (const frame of frames) {
-      const current = frame === 5 ? result.reels : randomReels();
-      await interaction.editReply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🎰 WIMPLY SLOTS 〕─╮').setDescription(`〢 **Bet:** ${betDisplay}\n〢 **[ ${current.join(' │ ')} ]**\n〢 ${frame < 3 ? '⚡ Reels are starting…' : frame < 5 ? '🔄 Reels are rolling…' : '✨ Result locked!'}\n╰─〔 ${frame}/5 • Please wait… 〕─╯`)] });
-      if (frame < 5) await sleep(360);
+      const current = frame === frames.length ? result.reels : randomReels();
+      const locked = Math.min(3, Math.max(0, frame - 4));
+      await interaction.editReply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🎰 WIMPLY SLOTS 〕─╮').setDescription(`〢 **Bet:** ${betDisplay}\n\n**[ ${current.join(' │ ')} ]**\n\n〢 ${frame < 3 ? '⚡ Powering the reels…' : frame < 5 ? '🔄 Spinning…' : frame < frames.length ? `🎯 Locking reels: ${'●'.repeat(locked)}${'○'.repeat(3 - locked)}` : '✨ Result locked!'}\n〢 **Sequence:** ${'▰'.repeat(frame)}${'▱'.repeat(frames.length - frame)}\n╰─〔 ${frame}/${frames.length} • ${frame < frames.length ? 'Please wait…' : 'Spin complete'} 〕─╯`)] });
+      if (frame < frames.length) await sleep(frame === frames.length - 1 ? 450 : 300);
     }
     const resultEmbed = createDefaultEmbed().setTitle(result.jackpot ? '╭─〔 💎 JACKPOT 〕─╮' : result.won ? '╭─〔 🎉 SLOT WIN 〕─╮' : '╭─〔 💥 SLOT LOSS 〕─╮').setDescription(`〢 ${result.message}\n\n╰─〔 🎰 Spin complete 〕─╯`).addFields({ name: '🎰 Reels', value: `**[ ${result.reels.join(' │ ')} ]**`, inline: false }, { name: '📈 Multiplier', value: `${result.multiplier}x`, inline: true }, { name: '🪙 Wallet Change', value: formatCurrency(result.netAmount, guildConfig.currencyEmoji), inline: true }, { name: '💰 New Wallet', value: formatCurrency(result.newWallet, guildConfig.currencyEmoji), inline: true });
     const resultMessage = await interaction.editReply({ embeds: [resultEmbed] });
