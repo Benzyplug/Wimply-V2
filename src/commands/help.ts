@@ -4,16 +4,14 @@ import { createDefaultEmbed } from '../utils/embeds.js';
 import { STYLE } from '../utils/presentation.js';
 
 const aliases: Record<string, string> = {
-  higherlower: 'hl', snailgarden: 'sg', blackjack: 'bj', coinflip: 'cf', leaderboard: 'lb',
-  inventory: 'inv', balance: 'bal', profile: 'p', shop: 'sh', eightball: '8b', roll: 'r',
-  choose: 'pick', networth: 'nw', fortune: 'f'
+  higherlower: 'hl', snailgarden: 'sg', blackjack: 'bj', coinflip: 'cf', leaderboard: 'lb', inventory: 'inv', balance: 'bal', profile: 'p', shop: 'sh', eightball: '8b', roll: 'r', choose: 'pick', networth: 'nw', fortune: 'f', aviator: 'avi', achievements: 'ach', profilebackground: 'pbg'
 };
 
 const categories = [
   { title: '💰 ECONOMY', names: ['balance','beg','crime','daily','deposit','leaderboard','monthly','networth','pay','rob','weekly','withdraw','work'] },
-  { title: '🎰 CASINO', names: ['blackjack','coinflip','dice','higherlower','mines','slot','snailgarden'] },
+  { title: '🎰 CASINO', names: ['aviator','blackjack','coinflip','dice','higherlower','mines','slot','snailgarden'] },
   { title: '🎒 INVENTORY & SHOP', names: ['inventory','give','drop','use','shop','buy','sell'] },
-  { title: '🎭 FUN & SOCIAL', names: ['choose','eightball','fortune','roll','ship'] },
+  { title: '🎭 FUN & SOCIAL', names: ['achievements','aura','choose','eightball','fortune','profile','profilebackground','roll','ship'] },
   { title: '⚙️ SERVER', names: ['config','dashboard','economy','item'] },
   { title: '🤖 WIMPLY', names: ['bot','owner','ping','help'] }
 ];
