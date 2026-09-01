@@ -40,7 +40,7 @@ export async function startAviator(discordId: string, guildId: string, amountStr
   if (user.wallet < amount) throw new AppError(`You need **${amount.toLocaleString()}** in your wallet to board this flight.`);
   const updated = await prisma.$transaction(async tx => {
     const next = await tx.user.update({ where: { id: user.id }, data: { wallet: user.wallet - amount } });
-    await tx.economyTransaction.create({ data: { userId: user.id, source: 'aviator', amount: -amount, balanceAfter: next.wallet + next.bank, type: 'CASINO', description: 'Aviator wager' } });
+    await tx.economyTransaction.create({ data: { userId: user.id, source: 'aviator', amount: -amount, balanceAfter: next.wallet + next.bank, type: 'ADMIN', description: 'Aviator wager' } });
     return next;
   });
   const session: AviatorSession = { id: randomBytes(8).toString('hex'), userId: updated.id, discordId, guildId, bet: amount, crashAt: crashPoint(), multiplier: 1, startedAt: Date.now(), cashedOut: false };
@@ -60,7 +60,7 @@ export async function cashOutAviator(sessionId: string, discordId: string, multi
   await prisma.$transaction(async tx => {
     const user = await tx.user.findUniqueOrThrow({ where: { id: session.userId } });
     const updated = await tx.user.update({ where: { id: user.id }, data: { wallet: user.wallet + payout } });
-    await tx.economyTransaction.create({ data: { userId: user.id, source: 'aviator', amount: payout, balanceAfter: updated.wallet + updated.bank, type: 'CASINO', description: `Aviator cashout at ${lockedMultiplier.toFixed(2)}x` } });
+    await tx.economyTransaction.create({ data: { userId: user.id, source: 'aviator', amount: payout, balanceAfter: updated.wallet + updated.bank, type: 'ADMIN', description: `Aviator cashout at ${lockedMultiplier.toFixed(2)}x` } });
   });
   return { session, multiplier: lockedMultiplier, payout };
 }
