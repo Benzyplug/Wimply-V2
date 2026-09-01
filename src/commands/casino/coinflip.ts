@@ -6,7 +6,6 @@ import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
 import { validateCommandOptions } from '../../utils/commandValidation.js';
 import { playCoinflip } from '../../services/casinoService.js';
 import { getOrCreateGuildConfig } from '../../services/guildConfigService.js';
-import { reactToGameResult } from '../../utils/gameReactions.js';
 
 const coinflipSchema = z.object({ amount: z.string().min(1, 'Amount is required'), choice: z.enum(['heads', 'tails']) });
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
@@ -30,8 +29,7 @@ const command: Command = {
     }
     const finalFace = result.outcome === 'heads' ? '🟡 HEADS' : '⚪ TAILS';
     const finalEmbed = createDefaultEmbed().setTitle(result.won ? '╭─〔 🎉 COINFLIP WIN 〕─╮' : '╭─〔 💥 COINFLIP LOSS 〕─╮').setDescription(`〢 ${result.message}\n〢 **The coin landed:** ${finalFace}\n\n╰─〔 🪙 Flip complete 〕─╯`).addFields({ name: '🎯 Your Pick', value: pick, inline: true }, { name: '🪙 Flip Result', value: result.outcome.toUpperCase(), inline: true }, { name: '💸 Wallet Change', value: formatCurrency(result.amount, guildConfig.currencyEmoji), inline: false }, { name: '💰 New Wallet', value: formatCurrency(result.newWallet, guildConfig.currencyEmoji), inline: true });
-    const resultMessage = await interaction.editReply({ embeds: [finalEmbed] });
-    await reactToGameResult(resultMessage, result.won ? 'COINFLIP_WIN' : 'COINFLIP_LOSS');
+    await interaction.editReply({ embeds: [finalEmbed] });
   }
 };
 export default command;
