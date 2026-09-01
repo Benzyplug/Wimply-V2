@@ -17,13 +17,7 @@ type MessagePayloadLike = { embeds?: unknown[]; content?: string; [key: string]:
 
 function cleanText(value: string | null | undefined) {
   if (!value) return value;
-  return value
-    .replace(LEGACY_STAMP, '')
-    .replace(LEGACY_FOOTER, '')
-    .replace(TOP_BOX, '**$1**')
-    .replace(BOTTOM_BOX, '$1')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return value.replace(LEGACY_STAMP, '').replace(LEGACY_FOOTER, '').replace(TOP_BOX, '$1').replace(BOTTOM_BOX, '$1').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null) {
@@ -61,7 +55,7 @@ export const STYLE = {
   version: BOT_VERSION,
   brand: BRAND,
   stamp: BRAND,
-  title: (emoji: string, text: string) => `${emoji} **${text.toUpperCase()}**`,
+  title: (emoji: string, text: string) => `${emoji} ${text.toUpperCase()}`,
   line: (emoji: string, text: string) => `${emoji} ${text}`,
   bottom: (emoji = '⚡', text = 'ẞ€ÑZ¥') => `${emoji} ${text}`
 };
