@@ -26,6 +26,10 @@ export type MinesState = {
 export const higherLowerGames = new Map<string, HigherLowerState>();
 export const minesGames = new Map<string, MinesState>();
 
+export function createGameSessionId(userId: string) {
+  return `${userId}:${crypto.randomUUID()}`;
+}
+
 export async function chargeGame(userId: string, guildId: string, amount: bigint, game: string) {
   if (amount <= 0n) throw new AppError('Your bet must be greater than **0** 🪙.');
   const { user } = await getOrCreateUser(userId, guildId);
