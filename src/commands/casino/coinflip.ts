@@ -24,18 +24,31 @@ const command: Command = {
     const betAmount = parsePositiveAmount(amountValue);
     await interaction.deferReply();
     const guildConfig = await getOrCreateGuildConfig(interaction.guildId);
+    const betDisplay = formatCurrency(betAmount, guildConfig.currencyEmoji);
+    const pick = choice.toUpperCase();
 
-    await interaction.editReply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🪙 COINFLIP 〕─╮').setDescription(`〢 Bet: **${formatCurrency(betAmount, guildConfig.currencyEmoji)}**\n〢 Pick: **${choice.toUpperCase()}**\n\n🪙\n\n╰─〔 🔄 Flipping… 〕─╯`)] });
-    await sleep(450);
-    await interaction.editReply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🪙 COINFLIP 〕─╮').setDescription(`〢 Bet: **${formatCurrency(betAmount, guildConfig.currencyEmoji)}**\n〢 Pick: **${choice.toUpperCase()}**\n\n↗️ 🪙 ↘️\n\n╰─〔 ⚡ The coin is in the air… 〕─╯`)] });
-    await sleep(450);
+    const frames = [
+      '🪙',
+      '↗️  🪙  ↘️',
+      '⬆️  🪙  ⬆️',
+      '↘️  🪙  ↙️',
+      '🔄  🪙  🔄'
+    ];
+
+    for (let index = 0; index < frames.length; index++) {
+      await interaction.editReply({
+        embeds: [createDefaultEmbed().setTitle('╭─〔 🪙 WIMPLY COINFLIP 〕─╮').setDescription(`〢 **Bet:** ${betDisplay}\n〢 **Pick:** **${pick}**\n\n**${frames[index]}**\n\n╰─〔 ${index + 1}/${frames.length} • ${index < frames.length - 1 ? 'Coin is flipping…' : 'Coin is landing…'} 〕─╯`)]
+      });
+      if (index < frames.length - 1) await sleep(330);
+    }
 
     const result = await playCoinflip(interaction.user.id, interaction.guildId, betAmount, choice as 'heads' | 'tails');
+    const finalFace = result.outcome === 'heads' ? '🟡 HEADS' : '⚪ TAILS';
     const finalEmbed = createDefaultEmbed()
       .setTitle(result.won ? '╭─〔 🎉 COINFLIP WIN 〕─╮' : '╭─〔 💥 COINFLIP LOSS 〕─╮')
-      .setDescription(`〢 ${result.message}`)
+      .setDescription(`〢 ${result.message}\n〢 **The coin landed:** ${finalFace}\n\n╰─〔 🪙 Flip complete 〕─╯`)
       .addFields(
-        { name: '🎯 Your Pick', value: choice.toUpperCase(), inline: true },
+        { name: '🎯 Your Pick', value: pick, inline: true },
         { name: '🪙 Flip Result', value: result.outcome.toUpperCase(), inline: true },
         { name: '💸 Wallet Change', value: formatCurrency(result.amount, guildConfig.currencyEmoji), inline: false },
         { name: '💰 New Wallet', value: formatCurrency(result.newWallet, guildConfig.currencyEmoji), inline: true }
