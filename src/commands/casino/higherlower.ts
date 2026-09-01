@@ -4,7 +4,7 @@ import type { Command } from '../../types/command.js';
 import { createDefaultEmbed } from '../../utils/embeds.js';
 import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
 import { validateCommandOptions } from '../../utils/commandValidation.js';
-import { chargeGame, getGameCurrency, higherLowerGames } from '../../services/miniGameService.js';
+import { chargeGame, createGameSessionId, getGameCurrency, higherLowerGames } from '../../services/miniGameService.js';
 
 const schema = z.object({ amount: z.string().min(1) });
 
@@ -15,17 +15,14 @@ const buttons = (id: string, moves = 0) => new ActionRowBuilder<ButtonBuilder>()
 );
 
 const command: Command = {
-  data: new SlashCommandBuilder()
-    .setName('higherlower')
-    .setDescription('Predict whether the next number is higher or lower')
-    .addStringOption(option => option.setName('amount').setDescription('Amount to bet').setRequired(true)),
+  data: new SlashCommandBuilder().setName('higherlower').setDescription('Predict whether the next number is higher or lower').addStringOption(option => option.setName('amount').setDescription('Amount to bet').setRequired(true)),
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guildId) return;
     const { amount } = validateCommandOptions(schema, { amount: interaction.options.getString('amount', true) });
     const bet = parsePositiveAmount(amount);
     await chargeGame(interaction.user.id, interaction.guildId, bet, 'Higher/Lower');
     const currency = await getGameCurrency(interaction.guildId);
-    const id = `${interaction.guildId}:${interaction.user.id}`;
+    const id = createGameSessionId(interaction.user.id);
     const current = Math.floor(Math.random() * 90) + 5;
     higherLowerGames.set(id, { userId: interaction.user.id, guildId: interaction.guildId, bet, current, multiplier: 1, moves: 0, expiresAt: Date.now() + 5 * 60_000 });
     await interaction.reply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🎯 HIGHER / LOWER 〕─╮').setDescription(`〢 Starting bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Current number: **${current}**\n〢 Secured multiplier: **1.00x**\n〢 Moves: **0**\n\nChoose whether the next number goes **higher** or **lower**.\n\n╰─〔 🎮 Make a move before cashing out 〕─╯`)], components: [buttons(id)] });
