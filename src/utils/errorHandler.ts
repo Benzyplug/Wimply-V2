@@ -4,7 +4,6 @@ import { AppError } from './errors.js';
 import { log } from './logger.js';
 
 const VERSION = 'Wimply V2.1.1';
-const BRAND = '╰─〔 ⚡ 〢 Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
 
 function getLogo(interaction: ChatInputCommandInteraction | ButtonInteraction): string {
   return interaction.guild?.emojis.cache.find(emoji => emoji.name === 'Wimply_logo')?.toString() ?? '⚡';
@@ -31,38 +30,9 @@ function parseCountdown(message: string): number | null {
   return total > 0 ? total : null;
 }
 
-function formatCountdown(ms: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours) return `${hours}h ${minutes}m ${seconds}s`;
-  if (minutes) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
-}
-
-function withCountdown(message: string, remaining: number): string {
-  return message.replace(/Try again in (?:(\d+)h )?(?:(\d+)m )?(?:(\d+)s )?\.?/i, `Try again in ${formatCountdown(remaining)}.`);
-}
-
-async function keepCountdown(
-  interaction: ChatInputCommandInteraction | ButtonInteraction,
-  originalMessage: string,
-  banner: string | null,
-  logo: string,
-  initialRemaining: number
-) {
-  let remaining = initialRemaining;
-  while (remaining > 0) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    remaining -= 1000;
-    if (remaining <= 0) break;
-    try {
-      await interaction.editReply({ embeds: [errorEmbed(withCountdown(originalMessage, remaining), banner, logo)] });
-    } catch {
-      break;
-    }
-  }
+function withDiscordCountdown(message: string, remaining: number): string {
+  const unixSeconds = Math.floor((Date.now() + remaining) / 1000);
+  return message.replace(/Try again in (?:(\d+)h )?(?:(\d+)m )?(?:(\d+)s )?\.?/i, `Try again <t:${unixSeconds}:R>.`);
 }
 
 export function handleProcessError(error: unknown, source: string) {
@@ -79,17 +49,11 @@ export async function handleInteractionError(interaction: ChatInputCommandIntera
   try {
     const banner = interaction.client.user.bannerURL({ size: 1024 }) ?? interaction.client.user.displayAvatarURL({ size: 1024 });
     const logo = getLogo(interaction);
-    const payload = { embeds: [errorEmbed(message, banner, logo)], ephemeral: true };
     const countdown = parseCountdown(message);
-    if (interaction.replied) {
-      await interaction.followUp(payload);
-      if (countdown) void keepCountdown(interaction, message, banner, logo, countdown);
-    } else if (interaction.deferred) {
-      await interaction.editReply({ embeds: [errorEmbed(message, banner, logo)] });
-      if (countdown) void keepCountdown(interaction, message, banner, logo, countdown);
-    } else if (interaction.isRepliable()) {
-      await interaction.reply({ ...payload, fetchReply: true });
-      if (countdown) void keepCountdown(interaction, message, banner, logo, countdown);
-    }
+    const displayedMessage = countdown ? withDiscordCountdown(message, countdown) : message;
+    const payload = { embeds: [errorEmbed(displayedMessage, banner, logo)], ephemeral: true };
+    if (interaction.replied) await interaction.followUp(payload);
+    else if (interaction.deferred) await interaction.editReply({ embeds: [errorEmbed(displayedMessage, banner, logo)] });
+    else if (interaction.isRepliable()) await interaction.reply(payload);
   } catch (replyError) { console.error('Failed to send error reply:', replyError); }
 }
