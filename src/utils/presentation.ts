@@ -14,7 +14,7 @@ export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null
   const embed = input instanceof EmbedBuilder ? EmbedBuilder.from(input) : EmbedBuilder.from(input as any);
   if (!embed.data.color) embed.setColor(DEFAULT_COLOR);
   if (!embed.data.timestamp) embed.setTimestamp();
-  if (!embed.data.footer) embed.setFooter({ text: BRAND });
+  embed.setFooter({ text: BRAND });
   if (!embed.data.author && clientUser) embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
   if (!embed.data.thumbnail && clientUser) embed.setThumbnail(clientUser.displayAvatarURL({ size: 128 }));
   if (!embed.data.image && clientUser?.bannerURL) {
