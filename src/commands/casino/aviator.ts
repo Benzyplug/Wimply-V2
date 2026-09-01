@@ -25,8 +25,8 @@ const command: Command = {
     const { config } = await getOrCreateUser(interaction.user.id, interaction.guildId);
     const emoji = config.currencyEmoji || '🪙';
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`aviator:cashout:${session.id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success));
-    await interaction.reply({ embeds: [flightEmbed(session, emoji)], components: [row] });
-    const message = await interaction.fetchReply();
+    await interaction.deferReply();
+    const message = await interaction.editReply({ embeds: [flightEmbed(session, emoji)], components: [row] });
     const timer = setInterval(async () => {
       const live = aviatorGames.get(session.id);
       if (!live) { clearInterval(timer); return; }
