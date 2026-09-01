@@ -72,6 +72,7 @@ export async function reactToBotMessage(
   if (!message) return;
 
   const logo = getLogo(message);
+  if (logo && message.reactions.cache.has(logo)) return;
   if (logo) {
     try { await message.react(logo); }
     catch (error) { log.warn(`Failed to react with ${WIMPLY_LOGO_NAME}: ${error instanceof Error ? error.message : String(error)}`, 'Reaction'); }
