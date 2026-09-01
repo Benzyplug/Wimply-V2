@@ -4,6 +4,7 @@ import type { Command } from '../types/command.js';
 import { getMatchingReactionRules } from '../services/reactionService.js';
 import { log } from '../utils/logger.js';
 import { handleInteractionError } from '../utils/errorHandler.js';
+import { polishPayload, STYLE } from '../utils/presentation.js';
 
 const PREFIXES = ['#', '!'];
 const FOOTER = 'Wimply V2.0 • Built by SHAX ⚡';
@@ -107,9 +108,9 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
     isRepliable: () => true,
     isChatInputCommand: () => true,
     deferReply: async () => { deferred = true; },
-    reply: async (payload: string | MessageReplyOptions) => { sent = await message.reply(payload); deferred = false; return sent; },
-    editReply: async (payload: string | MessageReplyOptions) => { sent = sent ? await sent.edit(payload as Parameters<Message['edit']>[0]) : await message.reply(payload); deferred = false; return sent; },
-    followUp: async (payload: string | MessageReplyOptions) => message.reply(payload),
+    reply: async (payload: string | MessageReplyOptions) => { sent = await message.reply(polishPayload(payload as any, message.client.user) as any); deferred = false; return sent; },
+    editReply: async (payload: string | MessageReplyOptions) => { const polished = polishPayload(payload as any, message.client.user) as any; sent = sent ? await sent.edit(polished) : await message.reply(polished); deferred = false; return sent; },
+    followUp: async (payload: string | MessageReplyOptions) => message.reply(polishPayload(payload as any, message.client.user) as any),
     deleteReply: async () => { if (sent) await sent.delete(); }
   };
   return adapter as unknown as Parameters<Command['execute']>[0];
@@ -125,13 +126,14 @@ async function handlePrefix(message: Message): Promise<boolean> {
 
   if (name === 'help' || name === 'commands') {
     const commands = message.client.commands ? [...message.client.commands.keys()].sort() : [];
-    await message.reply({ embeds: [baseEmbed('╭─〔 📖 WIMPLY COMMAND CENTER 〕─╮', `〢 **Prefix:** \`#\` or \`!\`\n〢 **Slash:** \`/\`\n\n${commands.map(command => `• \`${prefix}${command}\``).join('\n')}\n\n╰─〔 ⚡ Prefix and slash interfaces share the same command logic 〕─╯`)] });
+    const grouped = commands.length ? commands.map(command => `• \`${prefix}${command}\``).join('\n') : '• No commands loaded.';
+    await message.reply({ embeds: [baseEmbed(STYLE.title('📖', 'Wimply Command Center'), `〢 **Prefix:** \`#\` or \`!\`\n〢 **Slash:** \`/\`\n〢 **Loaded:** **${commands.length}** commands\n\n${grouped}\n\n${STYLE.bottom('⚡', 'Prefix and slash interfaces share the same command logic')}`)] });
     return true;
   }
 
   const command = message.client.commands?.get(name);
   if (!command) {
-    await message.reply({ embeds: [baseEmbed('╭─〔 ❔ UNKNOWN COMMAND 〕─╮', `〢 \`${prefix}${name}\` is not a Wimply command.\n〢 Run \`${prefix}help\` to see the command center.`)] });
+    await message.reply({ embeds: [baseEmbed(STYLE.title('❔', 'Unknown Command'), `〢 \`${prefix}${name}\` is not a Wimply command.\n〢 Run \`${prefix}help\` to open the command center.\n\n${STYLE.bottom('🧭', 'Use # for prefix commands')}`)] });
     return true;
   }
 
