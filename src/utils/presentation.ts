@@ -1,7 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
 
-const BRAND = '╰─〔 ⚡ 〢 Made by Benzy 〢 〕─╯';
+const BRAND = '╰─〔 ⚡ 〢 ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
 const DEFAULT_COLOR = 0x5865f2;
+const BOT_VERSION = 'Wimply V2.1.1';
 
 type ClientUserLike = {
   username?: string;
@@ -38,7 +39,9 @@ export function balanceMessage(current: bigint, required: bigint, action: string
 }
 
 export const STYLE = {
+  version: BOT_VERSION,
+  brand: BRAND,
   title: (emoji: string, text: string) => `╭─〔 ${emoji} ${text.toUpperCase()} 〕─╮`,
   line: (emoji: string, text: string) => `〢 ${emoji} ${text}`,
-  bottom: (emoji = '⚡', text = '〢 Made by Benzy 〢') => `╰─〔 ${emoji} ${text} 〕─╯`
+  bottom: (emoji = '⚡', text = 'ẞ€ÑZ¥') => `╰─〔 ${emoji} ${text} 〕─╯`
 };
