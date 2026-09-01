@@ -1,7 +1,7 @@
 import { EmbedBuilder, Colors } from 'discord.js';
 import { decorateEmbed, STYLE } from './presentation.js';
 
-const BRAND_FOOTER = 'Wimply V2.0 • Official Bot';
+const BRAND_FOOTER = STYLE.brand;
 
 export function createDefaultEmbed() {
   return new EmbedBuilder()
@@ -20,7 +20,7 @@ export function createSuccessEmbed(title: string, description: string) {
 export function createErrorEmbed(description: string) {
   return createDefaultEmbed()
     .setTitle(STYLE.title('🚫', 'Wimply Error'))
-    .setDescription(`〢 ${description}\n\n${STYLE.bottom('🛠️', 'Try again or check /help')}`)
+    .setDescription(`〢 ${description}`)
     .setColor(Colors.Red);
 }
 
