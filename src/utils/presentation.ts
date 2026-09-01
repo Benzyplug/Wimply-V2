@@ -31,11 +31,14 @@ export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null
 }
 
 export function polishPayload<T extends MessagePayloadLike | string>(payload: T, clientUser?: ClientUserLike | null): T {
-  if (typeof payload === 'string' || !payload || !Array.isArray(payload.embeds)) return payload;
+  if (typeof payload === 'string' || !payload) return payload;
 
   const objectPayload = payload as MessagePayloadLike;
+  const embeds = objectPayload.embeds;
+  if (!Array.isArray(embeds)) return payload;
+
   const polished = Object.assign({}, objectPayload, {
-    embeds: objectPayload.embeds.map((embed) => decorateEmbed(embed, clientUser))
+    embeds: embeds.map((embed) => decorateEmbed(embed, clientUser))
   });
 
   return polished as T;
