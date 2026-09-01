@@ -4,7 +4,7 @@ import type { Command } from '../../types/command.js';
 import { createDefaultEmbed } from '../../utils/embeds.js';
 import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
 import { validateCommandOptions } from '../../utils/commandValidation.js';
-import { chargeGame, getGameCurrency, minesGames, randomMines } from '../../services/miniGameService.js';
+import { chargeGame, createGameSessionId, getGameCurrency, minesGames, randomMines } from '../../services/miniGameService.js';
 
 const schema = z.object({ amount: z.string().min(1), mines: z.number().int().min(1).max(19) });
 const size = 20;
@@ -36,11 +36,11 @@ const command: Command = {
     const bet = parsePositiveAmount(amount);
     await chargeGame(interaction.user.id, interaction.guildId, bet, 'Mines');
     const currency = await getGameCurrency(interaction.guildId);
-    const id = `${interaction.guildId}:${interaction.user.id}`;
+    const id = createGameSessionId(interaction.user.id);
     const revealed = new Set<number>();
     minesGames.set(id, { userId: interaction.user.id, guildId: interaction.guildId, bet, mines: randomMines(mineCount, size), revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 });
     await interaction.reply({
-      embeds: [createDefaultEmbed().setTitle('╭─〔 💣 MINES 〕─╮').setDescription(`〢 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Mines: **${mineCount}/19**\n〢 Multiplier: **1.00x**\n\nPick a tile. Find 💎 to raise the payout. More mines increase the multiplier.\n\n╰─〔 💰 Cash out after at least 1 safe click 〕─╯`)],
+      embeds: [createDefaultEmbed().setTitle('╭─〔 💣 MINES 〕─╮').setDescription(`〢 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Mines: **${mineCount}/19**\n〢 Multiplier: **1.00x**\n〢 Gems found: **0**\n\nPick a tile. Find 💎 to raise the payout. More mines increase the multiplier.\n\n╰─〔 💰 Cash out after at least 1 safe click 〕─╯`)],
       components: minesRows(id, revealed)
     });
   }
