@@ -1,7 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 
 const BRAND = '╰─〔 ⚡ 〢 Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
-const STAMP = '╰─〔 ⚡ 〢 Wimply V2.1.1 • Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
 const DEFAULT_COLOR = 0x5865f2;
 const BOT_VERSION = 'Wimply V2.1.1';
 
@@ -12,17 +11,10 @@ type ClientUserLike = {
 };
 type MessagePayloadLike = { embeds?: unknown[]; content?: string; [key: string]: unknown };
 
-function appendStamp(embed: EmbedBuilder) {
-  const description = embed.data.description;
-  if (!description || description.includes('Wimply V2.1.1 • Made by ẞ€ÑZ¥')) return;
-  embed.setDescription(`${description}\n\n${STAMP}`);
-}
-
 export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null) {
   const embed = input instanceof EmbedBuilder ? EmbedBuilder.from(input) : EmbedBuilder.from(input as any);
   if (!embed.data.color) embed.setColor(DEFAULT_COLOR);
   if (!embed.data.timestamp) embed.setTimestamp();
-  appendStamp(embed);
   embed.setFooter({ text: BRAND });
   if (!embed.data.author && clientUser) embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
   if (!embed.data.thumbnail && clientUser) embed.setThumbnail(clientUser.displayAvatarURL({ size: 128 }));
@@ -42,15 +34,15 @@ export function polishPayload<T extends MessagePayloadLike | string>(payload: T,
 
 export function balanceMessage(current: bigint, required: bigint, action: string, emoji = '🪙') {
   const missing = required > current ? required - current : 0n;
-  if (missing > 0n) return `╭─〔 💳 WALLET CHECK 〕─╮\n〢 **Balance:** ${current.toLocaleString()} ${emoji}\n〢 **Required:** ${required.toLocaleString()} ${emoji}\n〢 **Missing:** ${missing.toLocaleString()} ${emoji}\n〢 You need **${missing.toLocaleString()} ${emoji}** more to ${action}.\n╰─〔 📈 Earn more with #work • #daily • #beg 〕─╯`;
-  return `╭─〔 💳 WALLET CHECK 〕─╮\n〢 **Balance:** ${current.toLocaleString()} ${emoji}\n〢 **Required:** ${required.toLocaleString()} ${emoji}\n〢 **Status:** ✅ Ready to ${action}.\n╰─〔 ⚡ Wimply Economy 〕─╯`;
+  if (missing > 0n) return `💳 **Wallet check**\nBalance: **${current.toLocaleString()} ${emoji}**\nRequired: **${required.toLocaleString()} ${emoji}**\nMissing: **${missing.toLocaleString()} ${emoji}**\nYou need **${missing.toLocaleString()} ${emoji}** more to ${action}.`;
+  return `💳 **Wallet check**\nBalance: **${current.toLocaleString()} ${emoji}**\nRequired: **${required.toLocaleString()} ${emoji}**\nStatus: ✅ Ready to ${action}.`;
 }
 
 export const STYLE = {
   version: BOT_VERSION,
   brand: BRAND,
-  stamp: STAMP,
-  title: (emoji: string, text: string) => `╭─〔 ${emoji} ${text.toUpperCase()} 〕─╮`,
-  line: (emoji: string, text: string) => `〢 ${emoji} ${text}`,
-  bottom: (emoji = '⚡', text = 'ẞ€ÑZ¥') => `╰─〔 ${emoji} ${text} 〕─╯`
+  stamp: BRAND,
+  title: (emoji: string, text: string) => `${emoji} **${text.toUpperCase()}**`,
+  line: (emoji: string, text: string) => `${emoji} ${text}`,
+  bottom: (emoji = '⚡', text = 'ẞ€ÑZ¥') => `${emoji} ${text}`
 };
