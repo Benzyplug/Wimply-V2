@@ -1,18 +1,23 @@
 import { EmbedBuilder, Colors } from 'discord.js';
 import type { Message, MessageReplyOptions } from 'discord.js';
 import type { Command } from '../types/command.js';
-import { getMatchingReactionRules } from '../services/reactionService.js';
+import { reactToMatchingMessage } from '../services/reactionService.js';
 import { log } from '../utils/logger.js';
 import { handleInteractionError } from '../utils/errorHandler.js';
 import { polishPayload, STYLE } from '../utils/presentation.js';
 
 const PREFIXES = ['#', '!'];
-const FOOTER = 'Wimply V2.0 • Built by SHAX ⚡';
+
 type PrefixOption = { type: number; name: string; required?: boolean; options?: PrefixOption[] };
 type PrefixCommandJson = { name: string; options?: PrefixOption[] };
 
+type PrefixAdapterState = {
+  interaction: Parameters<Command['execute']>[0];
+  getReply: () => Message | null;
+};
+
 function baseEmbed(title: string, description: string) {
-  return new EmbedBuilder().setColor(Colors.Blurple).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: FOOTER });
+  return new EmbedBuilder().setColor(Colors.Blurple).setTitle(title).setDescription(description).setTimestamp();
 }
 
 function tokenize(input: string) {
@@ -71,7 +76,7 @@ function resolveRole(message: Message, value?: string) {
   return message.guild.roles.cache.get(id) ?? null;
 }
 
-function buildPrefixInteraction(message: Message, command: Command, tokens: string[]) {
+function buildPrefixInteraction(message: Message, command: Command, tokens: string[]): PrefixAdapterState {
   const { values, subcommand, subcommandGroup } = resolveCommandShape(command, tokens);
   let sent: Message | null = null;
   let deferred = false;
@@ -110,10 +115,19 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
     deferReply: async () => { deferred = true; },
     reply: async (payload: string | MessageReplyOptions) => { sent = await message.reply(polishPayload(payload as any, message.client.user) as any); deferred = false; return sent; },
     editReply: async (payload: string | MessageReplyOptions) => { const polished = polishPayload(payload as any, message.client.user) as any; sent = sent ? await sent.edit(polished) : await message.reply(polished); deferred = false; return sent; },
-    followUp: async (payload: string | MessageReplyOptions) => message.reply(polishPayload(payload as any, message.client.user) as any),
+    followUp: async (payload: string | MessageReplyOptions) => { sent = await message.reply(polishPayload(payload as any, message.client.user) as any); return sent; },
     deleteReply: async () => { if (sent) await sent.delete(); }
   };
-  return adapter as unknown as Parameters<Command['execute']>[0];
+
+  return {
+    interaction: adapter as unknown as Parameters<Command['execute']>[0],
+    getReply: () => sent
+  };
+}
+
+async function reactToPrefixReply(message: Message, triggerContent: string, reply: Message | null) {
+  if (!reply) return;
+  await reactToMatchingMessage(reply, message.guildId, message.channelId, triggerContent);
 }
 
 async function handlePrefix(message: Message): Promise<boolean> {
@@ -127,22 +141,26 @@ async function handlePrefix(message: Message): Promise<boolean> {
   if (name === 'help' || name === 'commands') {
     const commands = message.client.commands ? [...message.client.commands.keys()].sort() : [];
     const grouped = commands.length ? commands.map(command => `• \`${prefix}${command}\``).join('\n') : '• No commands loaded.';
-    await message.reply({ embeds: [baseEmbed(STYLE.title('📖', 'Wimply Command Center'), `〢 **Prefix:** \`#\` or \`!\`\n〢 **Slash:** \`/\`\n〢 **Loaded:** **${commands.length}** commands\n\n${grouped}\n\n${STYLE.bottom('⚡', 'Prefix and slash interfaces share the same command logic')}`)] });
+    const reply = await message.reply({ embeds: [baseEmbed(STYLE.title('📖', 'Wimply Command Center'), `〢 **Prefix:** \`#\` or \`!\`\n〢 **Slash:** \`/\`\n〢 **Loaded:** **${commands.length}** commands\n\n${grouped}\n\n${STYLE.bottom('⚡', 'Prefix and slash interfaces share the same command logic')}`)] });
+    await reactToPrefixReply(message, content, reply);
     return true;
   }
 
   const command = message.client.commands?.get(name);
   if (!command) {
-    await message.reply({ embeds: [baseEmbed(STYLE.title('❔', 'Unknown Command'), `〢 \`${prefix}${name}\` is not a Wimply command.\n〢 Run \`${prefix}help\` to open the command center.\n\n${STYLE.bottom('🧭', 'Use # for prefix commands')}`)] });
+    const reply = await message.reply({ embeds: [baseEmbed(STYLE.title('❔', 'Unknown Command'), `〢 \`${prefix}${name}\` is not a Wimply command.\n〢 Run \`${prefix}help\` to open the command center.\n\n${STYLE.bottom('🧭', 'Use # for prefix commands')}`)] });
+    await reactToPrefixReply(message, content, reply);
     return true;
   }
 
-  const adapter = buildPrefixInteraction(message, command, tokens);
+  const state = buildPrefixInteraction(message, command, tokens);
   try {
-    await command.execute(adapter);
+    await command.execute(state.interaction);
   } catch (error) {
-    await handleInteractionError(adapter, error);
+    await handleInteractionError(state.interaction, error);
   }
+
+  await reactToPrefixReply(message, content, state.getReply());
   return true;
 }
 
@@ -152,15 +170,7 @@ export default {
   async execute(message: Message) {
     if (!message.guildId || message.author.bot || !message.content.trim()) return;
     try {
-      if (await handlePrefix(message)) return;
-      const rules = await getMatchingReactionRules(message.guildId, message.channelId, message.content);
-      for (const rule of rules) {
-        try {
-          await message.react(rule.emoji);
-        } catch (error) {
-          log.warn(`Failed to react with ${rule.emoji} for rule ${rule.id}: ${error instanceof Error ? error.message : String(error)}`, 'Reaction');
-        }
-      }
+      await handlePrefix(message);
     } catch (error) {
       log.error('Failed to process message/prefix automation', 'MessageCreate', error);
     }
