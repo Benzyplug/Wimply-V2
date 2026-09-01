@@ -108,6 +108,11 @@ async function registerCommands() {
   if (env.GUILD_ID) {
     await rest.put(Routes.applicationGuildCommands(env.CLIENT_ID, env.GUILD_ID), { body: commands });
     log.info(`Registered ${commands.length} guild commands to ${env.GUILD_ID}`, 'Commands');
+
+    // Clear stale global registrations so old global commands cannot appear
+    // beside the current guild command set as duplicates.
+    await rest.put(Routes.applicationCommands(env.CLIENT_ID), { body: [] });
+    log.info('Cleared stale global command registrations', 'Commands');
   } else {
     await rest.put(Routes.applicationCommands(env.CLIENT_ID), { body: commands });
     log.info(`Registered ${commands.length} global commands`, 'Commands');
