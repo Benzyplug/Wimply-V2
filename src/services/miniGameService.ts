@@ -56,6 +56,14 @@ export function randomMines(count: number, size: number) {
   return mines;
 }
 
+export function minesMultiplier(mineCount: number, safeTiles: number, size = 25): number {
+  if (safeTiles <= 0) return 1;
+  if (safeTiles > size - mineCount) return 0;
+  let probability = 1;
+  for (let i = 0; i < safeTiles; i++) probability *= (size - mineCount - i) / (size - i);
+  return Math.max(1, Number((0.96 / probability).toFixed(2)));
+}
+
 export function cleanupExpiredGames() {
   const now = Date.now();
   for (const [id, game] of higherLowerGames) if (game.expiresAt < now) higherLowerGames.delete(id);
