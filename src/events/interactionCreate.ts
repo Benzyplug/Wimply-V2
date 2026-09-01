@@ -3,15 +3,15 @@ import type { ButtonInteraction, Interaction } from 'discord.js';
 import { log } from '../utils/logger.js';
 import { handleInteractionError } from '../utils/errorHandler.js';
 import { handleBlackjackButtonInteraction } from '../services/blackjackService.js';
-import { higherLowerGames, minesGames, payGame, cleanupExpiredGames } from '../services/miniGameService.js';
+import { higherLowerGames, minesGames, minesMultiplier, payGame, cleanupExpiredGames } from '../services/miniGameService.js';
 import { reactToMatchingMessage } from '../services/reactionService.js';
 import { formatCurrency } from '../utils/format.js';
 import { polishPayload } from '../utils/presentation.js';
 
-const footer = '╰─〔 ⚡ 〢 ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
+const footer = '╰─〔 ⚡ 〢 Wimply V2.1.1 • Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
 function gameEmbed(title: string, description: string) { return new EmbedBuilder().setColor(Colors.Blurple).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: footer }); }
 function minesRows(id: string, revealed: Set<number>, mines?: Set<number>, cashout = true) {
-  const rows = Array.from({ length: 5 }, (_, r) => { const row = new ActionRowBuilder<ButtonBuilder>(); for (let c = 0; c < 4; c++) { const index = r * 4 + c; const isMine = mines?.has(index); row.addComponents(new ButtonBuilder().setCustomId(`mines:cell:${id}:${index}`).setLabel(revealed.has(index) ? (isMine ? '💣' : '💎') : '▫️').setStyle(revealed.has(index) ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(revealed.has(index))); } return row; });
+  const rows = Array.from({ length: 5 }, (_, r) => { const row = new ActionRowBuilder<ButtonBuilder>(); for (let c = 0; c < 5; c++) { const index = r * 5 + c; const isMine = mines?.has(index); row.addComponents(new ButtonBuilder().setCustomId(`mines:cell:${id}:${index}`).setLabel(revealed.has(index) ? (isMine ? '💣' : '💎') : '▫️').setStyle(revealed.has(index) ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(revealed.has(index))); } return row; });
   if (cashout) rows[4].addComponents(new ButtonBuilder().setCustomId(`mines:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success).setDisabled(revealed.size < 1));
   return rows;
 }
@@ -33,21 +33,24 @@ async function handleMiniGameButton(interaction: ButtonInteraction) {
     if (!correct) { higherLowerGames.delete(id); await interaction.update({ embeds: [gameEmbed('╭─〔 💥 HIGHER / LOWER LOST 〕─╮', `〢 **Miss!** 🎯\n〢 Previous: **${game.current}**\n〢 Next: **${next}**\n〢 Predictions: **${game.moves}**\n〢 Bet lost: **${formatCurrency(game.bet, '🪙')}**\n\n╰─〔 🎯 Session ended 〕─╯`)], components: [] }); return true; }
     game.current = next; game.multiplier = Math.min(8, game.multiplier + 0.5); game.expiresAt = Date.now() + 5 * 60_000;
     const potential = game.bet * BigInt(Math.round(game.multiplier * 100)) / 100n;
-    await interaction.update({ embeds: [gameEmbed('╭─〔 🎯 HIGHER / LOWER 〕─╮', `〢 **Correct!** 🎯\n〢 New number: **${game.current}**\n〢 Predictions: **${game.moves}**\n〢 Multiplier: **${game.multiplier.toFixed(2)}x**\n〢 Cash-out value: **${formatCurrency(potential, '🪙')}**`)], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`hl:higher:${id}`).setLabel('Higher ⬆️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`hl:lower:${id}`).setLabel('Lower ⬇️').setStyle(ButtonStyle.Secondary), new ButtonBuilder().setCustomId(`hl:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success))] }); return true;
+    await interaction.update({ embeds: [gameEmbed('╭─〔 🎯 HIGHER / LOWER 〕─╮', `〢 **Correct!** 🎯\n〢 New number: **${game.current}**\n〢 Predictions: **${game.moves}**\n〢 Multiplier: **${game.multiplier.toFixed(2)}x**\n〢 Cash-out value: **${formatCurrency(potential, '🪙')}`)], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`hl:higher:${id}`).setLabel('Higher ⬆️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`hl:lower:${id}`).setLabel('Lower ⬇️').setStyle(ButtonStyle.Secondary), new ButtonBuilder().setCustomId(`hl:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success))] }); return true;
   }
   if (parts[0] === 'mines') {
     const action = parts[1]; const id = action === 'cell' ? parts.slice(2, -1).join(':') : parts.slice(2).join(':'); const game = minesGames.get(id);
     if (!game || game.userId !== interaction.user.id) { await interaction.reply({ embeds: [gameEmbed('╭─〔 ⏳ GAME EXPIRED 〕─╮', '〢 This Mines session is no longer active.')] }); return true; }
     if (action === 'cashout') {
       if (game.revealed.size < 1) { await interaction.reply({ content: '〢 ⚠️ Reveal at least **1 safe tile** before cashing out.', ephemeral: true }); return true; }
-      const payout = game.bet * BigInt(Math.round(game.multiplier * 100)) / 100n; const settledBoard = new Set<number>(Array.from({ length: 20 }, (_, i) => i));
+      const payout = game.bet * BigInt(Math.round(game.multiplier * 100)) / 100n; const settledBoard = new Set<number>(Array.from({ length: 25 }, (_, i) => i));
       await payGame(game.userId, game.guildId, payout, 'Mines'); minesGames.delete(id);
-      await interaction.update({ embeds: [gameEmbed('╭─〔 💰 MINES CASH OUT 〕─╮', `〢 Secured **${formatCurrency(payout, '🪙')}** 💎\n〢 Mines: **${game.mineCount}**\n〢 Gems found: **${game.revealed.size}**\n〢 Multiplier: **${game.multiplier.toFixed(2)}x**\n\n╰─〔 🧩 Session secured 〕─╯`)], components: minesRows(id, settledBoard, game.mines, false) }); return true;
+      await interaction.update({ embeds: [gameEmbed('╭─〔 💰 MINES CASH OUT 〕─╮', `〢 Secured **${formatCurrency(payout, '🪙')}** 💎\n〢 Mines: **${game.mineCount}/25**\n〢 Gems found: **${game.revealed.size}**\n〢 Multiplier: **${game.multiplier.toFixed(2)}x**\n\n╰─〔 🧩 Board settled • Session secured 〕─╯`)], components: minesRows(id, settledBoard, game.mines, false) }); return true;
     }
-    const index = Number(parts.at(-1)); if (!Number.isInteger(index) || index < 0 || index >= 20 || game.revealed.has(index)) return true; game.revealed.add(index);
-    if (game.mines.has(index)) { const settledBoard = new Set<number>(Array.from({ length: 20 }, (_, i) => i)); minesGames.delete(id); await interaction.update({ embeds: [gameEmbed('╭─〔 💣 MINES HIT 〕─╮', `〢 **BOOM!** 💥\n〢 Mines: **${game.mineCount}**\n〢 Gems found: **${game.revealed.size - 1}**\n〢 Bet lost: **${formatCurrency(game.bet, '🪙')}**\n\n╰─〔 🧩 Session ended 〕─╯`)], components: minesRows(id, settledBoard, game.mines, false) }); return true; }
-    game.multiplier = 1 + game.revealed.size * (0.18 + game.mineCount * 0.045); game.expiresAt = Date.now() + 10 * 60_000; const potential = game.bet * BigInt(Math.round(game.multiplier * 100)) / 100n;
-    await interaction.update({ embeds: [gameEmbed('╭─〔 💎 MINES SAFE 〕─╮', `〢 **Safe tile!** 💎\n〢 Gems found: **${game.revealed.size}**\n〢 Mines: **${game.mineCount}**\n〢 Multiplier: **${game.multiplier.toFixed(2)}x**\n〢 Cash-out value: **${formatCurrency(potential, '🪙')}**`)], components: minesRows(id, game.revealed, game.mines) }); return true;
+    const index = Number(parts.at(-1)); if (!Number.isInteger(index) || index < 0 || index >= 25 || game.revealed.has(index)) return true;
+    game.revealed.add(index);
+    if (game.mines.has(index)) { const settledBoard = new Set<number>(Array.from({ length: 25 }, (_, i) => i)); minesGames.delete(id); await interaction.update({ embeds: [gameEmbed('╭─〔 💣 MINES HIT 〕─╮', `〢 **BOOM!** 💥\n〢 Mines: **${game.mineCount}/25**\n〢 Gems found: **${game.revealed.size - 1}**\n〢 Bet lost: **${formatCurrency(game.bet, '🪙')}**\n\n╰─〔 🧩 Board settled • Session ended 〕─╯`)], components: minesRows(id, settledBoard, game.mines, false) }); return true; }
+    game.multiplier = minesMultiplier(game.mineCount, game.revealed.size); game.expiresAt = Date.now() + 10 * 60_000;
+    const potential = game.bet * BigInt(Math.round(game.multiplier * 100)) / 100n;
+    const nextMultiplier = game.revealed.size < 25 - game.mineCount ? minesMultiplier(game.mineCount, game.revealed.size + 1) : game.multiplier;
+    await interaction.update({ embeds: [gameEmbed('╭─〔 💎 MINES SAFE 〕─╮', `〢 **Safe tile!** 💎\n〢 Gems found: **${game.revealed.size}**\n〢 Mines: **${game.mineCount}/25**\n〢 Current multiplier: **${game.multiplier.toFixed(2)}x**\n〢 Cash-out value: **${formatCurrency(potential, '🪙')}**\n〢 Next safe multiplier: **${nextMultiplier.toFixed(2)}x**\n\n╰─〔 💣 ${25 - game.mineCount - game.revealed.size} safe tiles remain 〕─╯`)], components: minesRows(id, game.revealed, game.mines) }); return true;
   }
   if (parts[0] === 'bot' && parts[1] === 'admin') {
     if (!interaction.memberPermissions?.has('Administrator')) { await interaction.reply({ content: '〢 🔒 **You don’t have permission to open the private server snapshot.**', ephemeral: true }); return true; }
