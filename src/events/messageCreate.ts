@@ -20,7 +20,24 @@ type PrefixAdapterState = { interaction: Parameters<Command['execute']>[0]; getR
 
 function baseEmbed(title: string, description: string) { return new EmbedBuilder().setColor(0x5865f2).setTitle(title).setDescription(`${description}\n\n${STYLE.stamp}`).setTimestamp().setFooter({ text: STYLE.brand }); }
 function tokenize(input: string) { const matches = input.match(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+/g) ?? []; return matches.map(token => (token.startsWith('"') || token.startsWith("'")) ? token.slice(1, -1) : token); }
-function resolveCommandShape(command: Command, tokens: string[]) { const json = command.data.toJSON() as unknown as PrefixCommandJson; let options = json.options ?? []; let index = 0; let subcommand: string | undefined; let subcommandGroup: string | undefined; const first = options[index]; if (first?.type === 2) { subcommandGroup = tokens[index]?.toLowerCase(); index += 1; const group = first.options?.find(option => option.name === subcommandGroup); options = group?.options ?? []; subcommand = tokens[index]?.toLowerCase(); index += 1; options = options.find(option => option.name === subcommand)?.options ?? []; } else if (first?.type === 1) { subcommand = tokens[index]?.toLowerCase(); index += 1; options = options.find(option => option.name === subcommand)?.options ?? []; } const values = new Map<string, string>(); for (const option of options.filter(option => option.type >= 3)) { const value = tokens[index]; if (value !== undefined) { values.set(option.name, value); index += 1; } } return { values, subcommand, subcommandGroup }; }
+function isUserToken(value: string | undefined) { return !!value && (/^<@!?\d{15,22}>$/.test(value) || /^\d{15,22}$/.test(value)); }
+function resolveCommandShape(command: Command, tokens: string[]) {
+  const json = command.data.toJSON() as unknown as PrefixCommandJson;
+  let options = json.options ?? [];
+  let index = 0;
+  let subcommand: string | undefined;
+  let subcommandGroup: string | undefined;
+  const first = options[index];
+  if (first?.type === 2) { subcommandGroup = tokens[index]?.toLowerCase(); index += 1; const group = first.options?.find(option => option.name === subcommandGroup); options = group?.options ?? []; subcommand = tokens[index]?.toLowerCase(); index += 1; options = options.find(option => option.name === subcommand)?.options ?? []; }
+  else if (first?.type === 1) { subcommand = tokens[index]?.toLowerCase(); index += 1; options = options.find(option => option.name === subcommand)?.options ?? []; }
+  const values = new Map<string, string>();
+  for (const option of options.filter(option => option.type >= 3)) {
+    const value = tokens[index];
+    if (option.type === 6 && !isUserToken(value)) continue;
+    if (value !== undefined) { values.set(option.name, value); index += 1; }
+  }
+  return { values, subcommand, subcommandGroup };
+}
 function resolveUser(message: Message, value?: string) { if (!value) return null; const id = value.match(/^<@!?([0-9]+)>$/)?.[1] ?? value; return message.client.users.cache.get(id) ?? message.mentions.users.get(id) ?? null; }
 function resolveChannel(message: Message, value?: string) { if (!value || !message.guild) return null; const id = value.match(/^<#([0-9]+)>$/)?.[1] ?? value; return message.guild.channels.cache.get(id) ?? null; }
 function resolveRole(message: Message, value?: string) { if (!value || !message.guild) return null; const id = value.match(/^<@&([0-9]+)>$/)?.[1] ?? value; return message.guild.roles.cache.get(id) ?? null; }
