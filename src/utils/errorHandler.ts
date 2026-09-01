@@ -3,13 +3,15 @@ import type { ChatInputCommandInteraction, ButtonInteraction } from 'discord.js'
 import { AppError } from './errors.js';
 import { log } from './logger.js';
 
+const BRAND_FOOTER = 'Wimply V2.0 • Official Bot';
+
 function errorEmbed(message: string) {
   return new EmbedBuilder()
     .setColor(Colors.Red)
     .setTitle('╭─〔 🚫 WIMPLY ERROR 〕─╮')
-    .setDescription(`〢 **What happened**\n${message}\n\n╭〔 🛠️ Recovery 〕╮\n〢 Check the command arguments and try again.\n〢 Use **/help** or **#help** for the command center.\n╰─〔 ⚡ Wimply V2.0 • Built by SHAX 〕─╯`)
+    .setDescription(`〢 **What happened**\n${message}\n\n╭〔 🛠️ Recovery 〕╮\n〢 Check the command arguments and try again.\n〢 Use **/help** or **#help** for the command center.\n╰─〔 ⚡ ${BRAND_FOOTER} 〕─╯`)
     .setTimestamp()
-    .setFooter({ text: 'Wimply V2.0 • Built by SHAX ⚡' });
+    .setFooter({ text: BRAND_FOOTER });
 }
 
 export function handleProcessError(error: unknown, source: string) {
