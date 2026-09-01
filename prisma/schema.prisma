@@ -14,13 +14,13 @@ model GuildConfig {
   name            String?
   currencyName    String         @default("Coins")
   currencyEmoji   String         @default("🪙")
-  dailyCooldown   Int            @default(24)
-  weeklyCooldown  Int            @default(168)
-  monthlyCooldown Int            @default(720)
-  workCooldown    Int            @default(3)
-  crimeCooldown   Int            @default(3)
-  robCooldown     Int            @default(4)
-  begCooldown     Int            @default(1)
+  dailyCooldown   Int            @default(86400)
+  weeklyCooldown  Int            @default(604800)
+  monthlyCooldown Int            @default(2592000)
+  workCooldown    Int            @default(10800)
+  crimeCooldown   Int            @default(10800)
+  robCooldown     Int            @default(14400)
+  begCooldown     Int            @default(3600)
   interestRate    Float          @default(0.01)
   xpEnabled       Boolean        @default(true)
   xpPerMessage    Int            @default(5)
@@ -77,9 +77,7 @@ model Item {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   inventory   InventoryItem[]
-  guild       GuildConfig     @relation(fields: [guildId], references: [id])
-
-  @@index([guildId, name])
+  guild       GuildConfig     @relation(fields: [guildId], references: [guildId])
 }
 
 model InventoryItem {
@@ -104,7 +102,6 @@ model EconomyTransaction {
   description  String
   createdAt    DateTime        @default(now())
   user         User?           @relation(fields: [userId], references: [id])
-
   @@index([userId])
 }
 
@@ -116,7 +113,6 @@ model ReactionRule {
   channelId String
   createdAt DateTime    @default(now())
   guild     GuildConfig @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
-
   @@index([guildId, channelId])
 }
 
