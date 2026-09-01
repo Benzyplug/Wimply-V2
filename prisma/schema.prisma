@@ -32,27 +32,28 @@ model GuildConfig {
 }
 
 model User {
-  id           String               @id @default(cuid())
-  discordId    String
-  guildId      String
-  wallet       BigInt               @default(0)
-  bank         BigInt               @default(0)
-  xp           Int                  @default(0)
-  level        Int                  @default(1)
-  badges       String[]             @default([])
-  joinedAt     DateTime             @default(now())
-  lastDaily    DateTime?
-  lastWeekly   DateTime?
-  lastMonthly  DateTime?
-  lastWork     DateTime?
-  lastCrime    DateTime?
-  lastRob      DateTime?
-  lastBeg      DateTime?
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
-  transactions EconomyTransaction[]
-  inventory    InventoryItem[]
-  guild        GuildConfig          @relation(fields: [guildId], references: [id])
+  id                String               @id @default(cuid())
+  discordId         String
+  guildId           String
+  wallet            BigInt               @default(0)
+  bank              BigInt               @default(0)
+  xp                Int                  @default(0)
+  level             Int                  @default(1)
+  badges            String[]             @default([])
+  profileBackground String               @default("midnight")
+  joinedAt          DateTime             @default(now())
+  lastDaily         DateTime?
+  lastWeekly        DateTime?
+  lastMonthly       DateTime?
+  lastWork          DateTime?
+  lastCrime         DateTime?
+  lastRob           DateTime?
+  lastBeg           DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  transactions      EconomyTransaction[]
+  inventory         InventoryItem[]
+  guild             GuildConfig          @relation(fields: [guildId], references: [id])
 
   @@unique([discordId, guildId])
   @@index([guildId])
