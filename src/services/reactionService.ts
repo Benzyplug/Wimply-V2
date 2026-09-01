@@ -51,33 +51,20 @@ async function chooseMatchingEmoji(guildId: string, channelId: string, content: 
   const customRules = await prisma.reactionRule.findMany({ where: { guildId, channelId } });
   const customMatch = pickRandom(customRules.filter(rule => normalized.includes(rule.trigger.toLowerCase())).map(rule => rule.emoji));
   if (customMatch) return customMatch;
-
   const candidates: string[] = [];
-  for (const group of BUILT_IN_REACTIONS) {
-    if (group.triggers.some(trigger => normalized.includes(trigger))) candidates.push(...group.emojis);
-  }
-  for (const group of DYNAMIC_REACTIONS) {
-    if (group.triggers.some(trigger => normalized.includes(trigger))) candidates.push(...group.emojis);
-  }
+  for (const group of BUILT_IN_REACTIONS) if (group.triggers.some(trigger => normalized.includes(trigger))) candidates.push(...group.emojis);
+  for (const group of DYNAMIC_REACTIONS) if (group.triggers.some(trigger => normalized.includes(trigger))) candidates.push(...group.emojis);
   return pickRandom([...new Set(candidates)]);
 }
 
-export async function reactToBotMessage(
-  message: Message | null | undefined,
-  guildId: string,
-  channelId: string,
-  triggerContent: string,
-  preferredEmojis?: string[]
-) {
+export async function reactToBotMessage(message: Message | null | undefined, guildId: string, channelId: string, triggerContent: string, preferredEmojis?: string[]) {
   if (!message) return;
-
   const logo = getLogo(message);
-  if (logo && message.reactions.cache.has(logo)) return;
+  if (logo && message.reactions.cache.some(reaction => reaction.emoji.id === logo)) return;
   if (logo) {
     try { await message.react(logo); }
     catch (error) { log.warn(`Failed to react with ${WIMPLY_LOGO_NAME}: ${error instanceof Error ? error.message : String(error)}`, 'Reaction'); }
   }
-
   const matching = preferredEmojis?.length ? pickRandom(preferredEmojis) : await chooseMatchingEmoji(guildId, channelId, triggerContent);
   if (!matching || matching === logo) return;
   try { await message.react(matching); }
