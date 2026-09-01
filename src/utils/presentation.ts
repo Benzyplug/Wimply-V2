@@ -32,7 +32,12 @@ export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null
 
 export function polishPayload<T extends MessagePayloadLike | string>(payload: T, clientUser?: ClientUserLike | null): T {
   if (typeof payload === 'string' || !payload || !Array.isArray(payload.embeds)) return payload;
-  return { ...payload, embeds: payload.embeds.map((embed) => decorateEmbed(embed, clientUser)) } as T;
+  const objectPayload = payload as MessagePayloadLike;
+  const polished: MessagePayloadLike = {
+    ...objectPayload,
+    embeds: objectPayload.embeds!.map((embed) => decorateEmbed(embed, clientUser))
+  };
+  return polished as T;
 }
 
 export function balanceMessage(current: bigint, required: bigint, action: string, emoji = '🪙') {
