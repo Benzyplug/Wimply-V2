@@ -3,6 +3,8 @@ import { EmbedBuilder } from 'discord.js';
 const BRAND = '╰─〔 ⚡ 〢 Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
 const DEFAULT_COLOR = 0x5865f2;
 const BOT_VERSION = 'Wimply V2.1.1';
+const LEGACY_STAMP = /╰─〔\s*⚡\s*〢\s*Wimply V2\.1\.1\s*•\s*Made by ẞ€ÑZ¥\s*〢\s*⚡\s*〕─╯/g;
+const LEGACY_FOOTER = /╰─〔\s*⚡\s*〢\s*Made by ẞ€ÑZ¥\s*〢\s*⚡\s*〕─╯/g;
 
 type ClientUserLike = {
   username?: string;
@@ -11,10 +13,18 @@ type ClientUserLike = {
 };
 type MessagePayloadLike = { embeds?: unknown[]; content?: string; [key: string]: unknown };
 
+function cleanDescription(description: string | null | undefined) {
+  if (!description) return description;
+  const cleaned = description.replace(LEGACY_STAMP, '').replace(LEGACY_FOOTER, '').replace(/\n{3,}/g, '\n\n').trim();
+  return cleaned || undefined;
+}
+
 export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null) {
   const embed = input instanceof EmbedBuilder ? EmbedBuilder.from(input) : EmbedBuilder.from(input as any);
   if (!embed.data.color) embed.setColor(DEFAULT_COLOR);
   if (!embed.data.timestamp) embed.setTimestamp();
+  const cleanedDescription = cleanDescription(embed.data.description);
+  if (cleanedDescription !== undefined) embed.setDescription(cleanedDescription);
   embed.setFooter({ text: BRAND });
   if (!embed.data.author && clientUser) embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
   if (!embed.data.thumbnail && clientUser) embed.setThumbnail(clientUser.displayAvatarURL({ size: 128 }));
