@@ -11,9 +11,17 @@ import { polishPayload } from '../utils/presentation.js';
 const footer = '╰─〔 ⚡ 〢 Wimply V2.1.1 • Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
 function gameEmbed(title: string, description: string) { return new EmbedBuilder().setColor(Colors.Blurple).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: footer }); }
 function minesRows(id: string, revealed: Set<number>, mines?: Set<number>, cashout = true) {
-  const rows = Array.from({ length: 5 }, (_, r) => { const row = new ActionRowBuilder<ButtonBuilder>(); for (let c = 0; c < 5; c++) { const index = r * 5 + c; const isMine = mines?.has(index); row.addComponents(new ButtonBuilder().setCustomId(`mines:cell:${id}:${index}`).setLabel(revealed.has(index) ? (isMine ? '💣' : '💎') : '▫️').setStyle(revealed.has(index) ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(revealed.has(index))); } return row; });
-  if (cashout) rows[4].addComponents(new ButtonBuilder().setCustomId(`mines:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success).setDisabled(revealed.size < 1));
-  return rows;
+  return Array.from({ length: 5 }, (_, r) => {
+    const row = new ActionRowBuilder<ButtonBuilder>();
+    for (let c = 0; c < 5; c++) {
+      const index = r * 5 + c;
+      const isMine = mines?.has(index);
+      const isRevealed = revealed.has(index);
+      const isCashoutTile = cashout && isRevealed && !isMine;
+      row.addComponents(new ButtonBuilder().setCustomId(isCashoutTile ? `mines:cashout:${id}:${index}` : `mines:cell:${id}:${index}`).setLabel(isRevealed ? (isMine ? '💣' : isCashoutTile ? '💰' : '💎') : '▫️').setStyle(isCashoutTile ? ButtonStyle.Success : isRevealed ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(isRevealed && !isCashoutTile));
+    }
+    return row;
+  });
 }
 function withPolishedResponses<T extends Interaction>(interaction: T): T { const clientUser = interaction.client.user; return new Proxy(interaction, { get(target, property, receiver) { if (property === 'reply' || property === 'editReply' || property === 'followUp' || property === 'update') return (payload: unknown) => (target as any)[property](polishPayload(payload as any, clientUser)); return Reflect.get(target, property, receiver); } }); }
 
@@ -33,10 +41,12 @@ async function handleMiniGameButton(interaction: ButtonInteraction) {
     if (!correct) { higherLowerGames.delete(id); await interaction.update({ embeds: [gameEmbed('╭─〔 💥 HIGHER / LOWER LOST 〕─╮', `〢 **Miss!** 🎯\n〢 Previous: **${game.current}**\n〢 Next: **${next}**\n〢 Predictions: **${game.moves}**\n〢 Bet lost: **${formatCurrency(game.bet, '🪙')}**\n\n╰─〔 🎯 Session ended 〕─╯`)], components: [] }); return true; }
     game.current = next; game.multiplier = Math.min(8, game.multiplier + 0.5); game.expiresAt = Date.now() + 5 * 60_000;
     const potential = game.bet * BigInt(Math.round(game.multiplier * 100)) / 100n;
-    await interaction.update({ embeds: [gameEmbed('╭─〔 🎯 HIGHER / LOWER 〕─╮', `〢 **Correct!** 🎯\n〢 New number: **${game.current}**\n〢 Predictions: **${game.moves}**\n〢 Multiplier: **${game.multiplier.toFixed(2)}x**\n〢 Cash-out value: **${formatCurrency(potential, '🪙')}`)], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`hl:higher:${id}`).setLabel('Higher ⬆️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`hl:lower:${id}`).setLabel('Lower ⬇️').setStyle(ButtonStyle.Secondary), new ButtonBuilder().setCustomId(`hl:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success))] }); return true;
+    await interaction.update({ embeds: [gameEmbed('╭─〔 🎯 HIGHER / LOWER 〕─╮', `〢 **Correct!** 🎯\n〢 New number: **${game.current}**\n〢 Predictions: **${game.moves}**\n〢 Multiplier: **${game.multiplier.toFixed(2)}x**\n〢 Cash-out value: **${formatCurrency(potential, '🪙')}**`)], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`hl:higher:${id}`).setLabel('Higher ⬆️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`hl:lower:${id}`).setLabel('Lower ⬇️').setStyle(ButtonStyle.Secondary), new ButtonBuilder().setCustomId(`hl:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success))] }); return true;
   }
   if (parts[0] === 'mines') {
-    const action = parts[1]; const id = action === 'cell' ? parts.slice(2, -1).join(':') : parts.slice(2).join(':'); const game = minesGames.get(id);
+    const action = parts[1];
+    const id = parts.slice(2, action === 'cell' ? -1 : action === 'cashout' ? -1 : undefined).join(':');
+    const game = minesGames.get(id);
     if (!game || game.userId !== interaction.user.id) { await interaction.reply({ embeds: [gameEmbed('╭─〔 ⏳ GAME EXPIRED 〕─╮', '〢 This Mines session is no longer active.')] }); return true; }
     if (action === 'cashout') {
       if (game.revealed.size < 1) { await interaction.reply({ content: '〢 ⚠️ Reveal at least **1 safe tile** before cashing out.', ephemeral: true }); return true; }
