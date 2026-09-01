@@ -26,7 +26,7 @@ const BUILT_IN_REACTIONS: Array<{ triggers: string[]; emojis: string[] }> = [
 
 const DYNAMIC_REACTIONS = [
   { triggers: ['jackpot', 'won', 'win', 'winner', 'profit', 'secured', 'congrat', 'success', 'level up'], emojis: ['🎉', '🔥', '🤑', '🚀', '👏', '💎'] },
-  { triggers: ['lost', 'loss', 'boom', 'failed', 'miss', 'broke', 'error'], emojis: ['💀', '😭', '💥', '🫠', 'F'] },
+  { triggers: ['lost', 'loss', 'boom', 'failed', 'miss', 'broke', 'error'], emojis: ['💀', '😭', '💥', '🫠', '📉'] },
   { triggers: ['safe', 'correct', 'rare', 'legendary', 'amazing'], emojis: ['😮', '🔥', '👀', '🗿', '✨'] },
   { triggers: ['hello', 'hi ', 'hey ', 'welcome'], emojis: ['👋', '😎', '🤝', '🫡'] }
 ];
