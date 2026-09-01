@@ -3,6 +3,7 @@ import { adjustBalance, getOrCreateUser } from './userService.js';
 import { prisma } from './database.js';
 
 export type HigherLowerState = {
+  id: string;
   userId: string;
   guildId: string;
   bet: bigint;
@@ -13,6 +14,7 @@ export type HigherLowerState = {
 };
 
 export type MinesState = {
+  id: string;
   userId: string;
   guildId: string;
   bet: bigint;
