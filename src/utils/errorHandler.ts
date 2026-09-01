@@ -14,9 +14,9 @@ function errorEmbed(message: string, banner: string | null, logo: string) {
   const embed = new EmbedBuilder()
     .setColor(Colors.Red)
     .setTitle(`╭─〔 ${logo} WIMPLY ERROR 〕─╮`)
-    .setDescription(`〢 **What happened**\n${message}\n\n╭〔 🛠️ Recovery 〕╮\n〢 Check the command arguments and try again.\n〢 Use **/help** or **#help** for the command center.\n╰─〔 ⚡ ${BRAND.replace('╰─〔 ⚡ ', '').replace(' 〕─╯', '')} 〕─╯`)
+    .setDescription(`〢 **What happened**\n${message}\n\n╭〔 🛠️ Recovery 〕╮\n〢 Check the command arguments and try again.\n〢 Use **/help** or **#help** for the command center.\n╰─〔 ⚡ 〢 Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯`)
     .setTimestamp()
-    .setFooter({ text: `${VERSION} • Made by ẞ€ÑZ¥` });
+    .setFooter({ text: VERSION });
   if (banner) embed.setImage(banner);
   return embed;
 }
