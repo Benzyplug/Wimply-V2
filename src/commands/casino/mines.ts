@@ -10,17 +10,23 @@ const schema = z.object({ amount: z.string().min(1), mines: z.number().int().min
 const size = 25;
 
 export function minesRows(id: string, revealed: Set<number>, mines?: Set<number>, cashout = true) {
-  const rows = Array.from({ length: 5 }, (_, r) => {
+  return Array.from({ length: 5 }, (_, r) => {
     const row = new ActionRowBuilder<ButtonBuilder>();
     for (let c = 0; c < 5; c++) {
       const i = r * 5 + c;
       const isMine = mines?.has(i);
-      row.addComponents(new ButtonBuilder().setCustomId(`mines:cell:${id}:${i}`).setLabel(revealed.has(i) ? (isMine ? '💣' : '💎') : '▫️').setStyle(revealed.has(i) ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(revealed.has(i)));
+      const isRevealed = revealed.has(i);
+      const isCashoutTile = cashout && isRevealed && !isMine;
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(isCashoutTile ? `mines:cashout:${id}:${i}` : `mines:cell:${id}:${i}`)
+          .setLabel(isRevealed ? (isMine ? '💣' : isCashoutTile ? '💰' : '💎') : '▫️')
+          .setStyle(isCashoutTile ? ButtonStyle.Success : isRevealed ? ButtonStyle.Secondary : ButtonStyle.Primary)
+          .setDisabled(isRevealed && !isCashoutTile)
+      );
     }
     return row;
   });
-  if (cashout) rows[4].addComponents(new ButtonBuilder().setCustomId(`mines:cashout:${id}`).setLabel('Cash Out 💰').setStyle(ButtonStyle.Success).setDisabled(revealed.size < 1));
-  return rows;
 }
 
 const command: Command = {
@@ -38,10 +44,9 @@ const command: Command = {
     const currency = await getGameCurrency(interaction.guildId);
     const id = createGameSessionId(interaction.user.id);
     const revealed = new Set<number>();
-    const nextMultiplier = minesMultiplier(mineCount, 1);
     minesGames.set(id, { userId: interaction.user.id, guildId: interaction.guildId, bet, mines: randomMines(mineCount, size), revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 });
     await interaction.reply({
-      embeds: [createDefaultEmbed().setTitle('╭─〔 💣 MINES 5×5 〕─╮').setDescription(`〢 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Mines: **${mineCount}/25**\n〢 Current multiplier: **1.00x**\n〢 Next safe multiplier: **${nextMultiplier.toFixed(2)}x**\n〢 Gems found: **0**\n\nPick a tile. 💎 raises the payout; 💣 ends the round. More mines make the board harder and increase the multiplier.\n\n╰─〔 💰 Cash out after at least 1 safe click 〕─╯`)],
+      embeds: [createDefaultEmbed().setTitle('╭─〔 💣 MINES 5×5 〕─╮').setDescription(`〢 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n〢 Mines: **${mineCount}/25**\n〢 Current multiplier: **1.00x**\n〢 Next safe multiplier: **${minesMultiplier(mineCount, 1).toFixed(2)}x**\n〢 Gems found: **0**\n\nPick a tile. 💎 raises the payout; 💣 ends the round. After a safe click, press the 💰 tile to cash out.\n\n╰─〔 💰 Cash out after at least 1 safe click 〕─╯`)],
       components: minesRows(id, revealed)
     });
   }
