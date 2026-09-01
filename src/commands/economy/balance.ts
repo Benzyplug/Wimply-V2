@@ -1,8 +1,8 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { AttachmentBuilder, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import type { Command } from '../../types/command.js';
-import { createDefaultEmbed } from '../../utils/embeds.js';
 import { formatCurrency } from '../../utils/format.js';
 import { getBalance } from '../../services/economyService.js';
+import { createBalanceCard } from '../../utils/economyCard.js';
 
 const command: Command = {
   data: new SlashCommandBuilder()
@@ -15,22 +15,18 @@ const command: Command = {
       await interaction.reply({ content: 'This command must be used in a guild.', ephemeral: true });
       return;
     }
-
     await interaction.deferReply();
     const target = interaction.options.getUser('user') ?? interaction.user;
     const { user, config } = await getBalance(target.id, interaction.guildId);
-
-    const embed = createDefaultEmbed()
-      .setTitle(`${target.username}'s Balance`)
+    const currency = config.currencyEmoji || '🪙';
+    const attachment = new AttachmentBuilder(createBalanceCard(target.username, user.wallet.toLocaleString(), user.bank.toLocaleString(), (user.wallet + user.bank).toLocaleString(), currency, user.level, user.xp), { name: 'wimply-balance.png' });
+    const embed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setTitle(`💰 ${target.username}'s Balance`)
+      .setDescription(`**Wallet** ${formatCurrency(user.wallet, currency)}  •  **Bank** ${formatCurrency(user.bank, currency)}\n**Net worth** ${formatCurrency(user.wallet + user.bank, currency)}  •  **Level** ${user.level}`)
       .setThumbnail(target.displayAvatarURL({ size: 256 }))
-      .addFields(
-        { name: 'Wallet', value: formatCurrency(user.wallet, config.currencyEmoji), inline: true },
-        { name: 'Bank', value: formatCurrency(user.bank, config.currencyEmoji), inline: true },
-        { name: 'Total / Net Worth', value: formatCurrency(user.wallet + user.bank, config.currencyEmoji), inline: true },
-        { name: 'Level / XP', value: `Level ${user.level} • ${user.xp} XP`, inline: false }
-      );
-
-    await interaction.editReply({ embeds: [embed] });
+      .setImage('attachment://wimply-balance.png');
+    await interaction.editReply({ embeds: [embed], files: [attachment] });
   }
 };
 
