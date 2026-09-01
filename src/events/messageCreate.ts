@@ -126,8 +126,9 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
 }
 
 async function reactToPrefixReply(message: Message, triggerContent: string, reply: Message | null) {
-  if (!reply) return;
-  await reactToMatchingMessage(reply, message.guildId, message.channelId, triggerContent);
+  const guildId = message.guildId;
+  if (!reply || !guildId) return;
+  await reactToMatchingMessage(reply, guildId, message.channelId, triggerContent);
 }
 
 async function handlePrefix(message: Message): Promise<boolean> {
