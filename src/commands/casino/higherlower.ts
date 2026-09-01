@@ -15,7 +15,7 @@ const command: Command = {
     const existing = [...higherLowerGames.values()].find(game => game.userId === interaction.user.id && game.guildId === interaction.guildId && game.expiresAt > Date.now());
     if (existing) { const currency = await getGameCurrency(interaction.guildId); await interaction.reply({ embeds: [createDefaultEmbed().setTitle('🎯 HIGHER / LOWER — RESUMED').setDescription(`Your unfinished season is still active.\n\n〢 Current number: **${existing.current}**\n〢 Multiplier: **${existing.multiplier.toFixed(2)}x**\n〢 Moves: **${existing.moves}**\n〢 Current value: **${formatCurrency(existing.bet * BigInt(Math.round(existing.multiplier * 100)) / 100n, currency.currencyEmoji)}**\n\nYour previous progress has been restored automatically.`)], components: [buttons(existing.id, existing.moves)] }); return; }
     const bet = parsePositiveAmount(amount); await chargeGame(interaction.user.id, interaction.guildId, bet, 'Higher/Lower'); const currency = await getGameCurrency(interaction.guildId); const id = createGameSessionId(interaction.user.id); const current = Math.floor(Math.random() * 90) + 5;
-    higherLowerGames.set(id, { userId: interaction.user.id, guildId: interaction.guildId, bet, current, multiplier: 1, moves: 0, expiresAt: Date.now() + 5 * 60_000 });
+    higherLowerGames.set(id, { id, userId: interaction.user.id, guildId: interaction.guildId, bet, current, multiplier: 1, moves: 0, expiresAt: Date.now() + 5 * 60_000 });
     await interaction.reply({ embeds: [createDefaultEmbed().setTitle('🎯 HIGHER / LOWER').setDescription(`Starting bet: **${formatCurrency(bet, currency.currencyEmoji)}**\nCurrent number: **${current}**\nMultiplier: **1.00x**\nMoves: **0**\n\nPredict the next number.`)], components: [buttons(id)] });
   }
 };
