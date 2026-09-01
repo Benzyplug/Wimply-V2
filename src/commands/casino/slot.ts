@@ -11,53 +11,28 @@ import { reactToGameResult } from '../../utils/gameReactions.js';
 const slotSchema = z.object({ amount: z.string().min(1, 'Amount is required') });
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 const reels = ['7️⃣', '💎', '🔔', '🍊', '🍒', '⭐'];
-
-function randomReels() {
-  return Array.from({ length: 3 }, () => reels[Math.floor(Math.random() * reels.length)]);
-}
-
-function spinFrame(frame: number, bet: string) {
-  const current = randomReels();
-  const lock = frame >= 3 ? '🔒' : '🎰';
-  return `╭─〔 🎰 WIMPLY SLOTS 〕─╮\n〢 **Bet:** ${bet}\n〢 ${lock} **[ ${current.join(' │ ')} ]**\n〢 ${frame === 1 ? '⚡ Reels are starting…' : frame === 2 ? '🔄 Reels are rolling…' : frame === 3 ? '🎯 Finalizing the spin…' : '✨ Result locked!'}\n╰─〔 ${frame}/4 • Please wait… 〕─╯`;
-}
+const randomReels = () => Array.from({ length: 3 }, () => reels[Math.floor(Math.random() * reels.length)]);
 
 const command: Command = {
-  data: new SlashCommandBuilder()
-    .setName('slot')
-    .setDescription('Play the slot machine')
-    .addStringOption(option => option.setName('amount').setDescription('Amount to bet').setRequired(true)),
+  data: new SlashCommandBuilder().setName('slot').setDescription('Play the slot machine').addStringOption(o => o.setName('amount').setDescription('Amount to bet').setRequired(true)),
   async execute(interaction: ChatInputCommandInteraction) {
-    if (!interaction.guildId) {
-      await interaction.reply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🚫 WIMPLY ERROR 〕─╮').setDescription('〢 This command must be used inside a server.')] });
-      return;
-    }
-
+    if (!interaction.guildId) return;
     const { amount } = validateCommandOptions(slotSchema, { amount: interaction.options.getString('amount', true) });
     const betAmount = parsePositiveAmount(amount);
     await interaction.deferReply();
     const guildConfig = await getOrCreateGuildConfig(interaction.guildId);
     const betDisplay = formatCurrency(betAmount, guildConfig.currencyEmoji);
-
-    for (let frame = 1; frame <= 4; frame++) {
-      await interaction.editReply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🎰 WIMPLY SLOTS 〕─╮').setDescription(spinFrame(frame, betDisplay))] });
-      if (frame < 4) await sleep(420);
-    }
-
+    // Resolve once, then animate toward the actual result so the visual never disagrees with the wager.
     const result = await playSlot(interaction.user.id, interaction.guildId, betAmount);
-    const resultEmbed = createDefaultEmbed()
-      .setTitle(result.jackpot ? '╭─〔 💎 JACKPOT 〕─╮' : result.won ? '╭─〔 🎉 SLOT WIN 〕─╮' : '╭─〔 💥 SLOT LOSS 〕─╮')
-      .setDescription(`〢 ${result.message}\n\n╰─〔 🎰 Spin complete 〕─╯`)
-      .addFields(
-        { name: '🎰 Reels', value: `**[ ${result.reels.join(' │ ')} ]**`, inline: false },
-        { name: '📈 Multiplier', value: `${result.multiplier}x`, inline: true },
-        { name: '🪙 Wallet Change', value: formatCurrency(result.netAmount, guildConfig.currencyEmoji), inline: true },
-        { name: '💰 New Wallet', value: formatCurrency(result.newWallet, guildConfig.currencyEmoji), inline: true }
-      );
-
+    const frames = [1, 2, 3, 4, 5];
+    for (const frame of frames) {
+      const current = frame === 5 ? result.reels : randomReels();
+      await interaction.editReply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🎰 WIMPLY SLOTS 〕─╮').setDescription(`〢 **Bet:** ${betDisplay}\n〢 **[ ${current.join(' │ ')} ]**\n〢 ${frame < 3 ? '⚡ Reels are starting…' : frame < 5 ? '🔄 Reels are rolling…' : '✨ Result locked!'}\n╰─〔 ${frame}/5 • Please wait… 〕─╯`)] });
+      if (frame < 5) await sleep(360);
+    }
+    const resultEmbed = createDefaultEmbed().setTitle(result.jackpot ? '╭─〔 💎 JACKPOT 〕─╮' : result.won ? '╭─〔 🎉 SLOT WIN 〕─╮' : '╭─〔 💥 SLOT LOSS 〕─╮').setDescription(`〢 ${result.message}\n\n╰─〔 🎰 Spin complete 〕─╯`).addFields({ name: '🎰 Reels', value: `**[ ${result.reels.join(' │ ')} ]**`, inline: false }, { name: '📈 Multiplier', value: `${result.multiplier}x`, inline: true }, { name: '🪙 Wallet Change', value: formatCurrency(result.netAmount, guildConfig.currencyEmoji), inline: true }, { name: '💰 New Wallet', value: formatCurrency(result.newWallet, guildConfig.currencyEmoji), inline: true });
     const resultMessage = await interaction.editReply({ embeds: [resultEmbed] });
     await reactToGameResult(resultMessage, result.jackpot ? 'SLOT_JACKPOT' : result.won ? 'SLOT_WIN' : 'SLOT_LOSS');
   }
 };
-
 export default command;
