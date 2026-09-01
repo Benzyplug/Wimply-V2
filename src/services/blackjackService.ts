@@ -6,7 +6,6 @@ import { isCooldownActive, getCooldownRemaining, setCooldown } from './cooldownM
 import { formatCurrency } from '../utils/format.js';
 import { reactToGameResult, type GameResultKey } from '../utils/gameReactions.js';
 
-const BLACKJACK_PAYOUT_MULTIPLIER = 1.5;
 const BLACKJACK_COOLDOWN_MS = 3_000;
 
 const activeGames = new Map<string, BlackjackGame>();
@@ -114,6 +113,7 @@ function getOutcome(state: BlackjackGame): 'win' | 'lose' | 'push' | 'blackjack'
   const dealerBusted = dealerValue > 21;
   if (playerBusted) return 'lose';
   if (playerBlackjack && !dealerBlackjack) return 'blackjack';
+  if (dealerBlackjack) return 'lose';
   if (dealerBusted) return 'win';
   if (playerValue > dealerValue) return 'win';
   if (playerValue < dealerValue) return 'lose';
