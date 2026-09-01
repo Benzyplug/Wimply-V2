@@ -4,10 +4,11 @@ import { log } from '../utils/logger.js';
 import { handleInteractionError } from '../utils/errorHandler.js';
 import { handleBlackjackButtonInteraction } from '../services/blackjackService.js';
 import { higherLowerGames, minesGames, payGame, cleanupExpiredGames } from '../services/miniGameService.js';
+import { reactToMatchingMessage } from '../services/reactionService.js';
 import { formatCurrency } from '../utils/format.js';
 import { polishPayload } from '../utils/presentation.js';
 
-const footer = 'Wimply V2.0 • Built by SHAX ⚡';
+const footer = 'Wimply V2.0 • Official Bot';
 
 function gameEmbed(title: string, description: string) {
   return new EmbedBuilder().setColor(Colors.Blurple).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: footer });
@@ -133,7 +134,17 @@ export default {
           log.warn(`Command not found: ${interaction.commandName}`, 'Interaction');
           return;
         }
+
         await command.execute(withPolishedResponses(interaction) as any);
+
+        if (interaction.guildId && (interaction.replied || interaction.deferred)) {
+          try {
+            const response = await interaction.fetchReply();
+            await reactToMatchingMessage(response, interaction.guildId, interaction.channelId, `/${interaction.commandName}`);
+          } catch (error) {
+            log.warn(`Unable to apply response reactions for /${interaction.commandName}: ${error instanceof Error ? error.message : String(error)}`, 'Reaction');
+          }
+        }
       }
     } catch (error) {
       await handleInteractionError(interaction as Parameters<typeof handleInteractionError>[0], error);
