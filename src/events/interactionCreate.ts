@@ -10,8 +10,25 @@ import { polishPayload } from '../utils/presentation.js';
 
 const footer = '╰─〔 ⚡ 〢 Wimply V2.1.1 • Made by ẞ€ÑZ¥ 〢 ⚡ 〕─╯';
 function gameEmbed(title: string, description: string) { return new EmbedBuilder().setColor(Colors.Blurple).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: footer }); }
-function warningEmbed(title: string, description: string) { return gameEmbed(title, `${description}\n\n╰─〔 ⚡ Wimply V2.1.1 • Made by ẞ€ÑZ¥ 〕─╯`); }
-function minesRows(id: string, revealed: Set<number>, mines?: Set<number>, cashout = true) { return Array.from({ length: 5 }, (_, r) => { const row = new ActionRowBuilder<ButtonBuilder>(); for (let c = 0; c < 5; c++) { const index = r * 5 + c; const isMine = mines?.has(index); const isRevealed = revealed.has(index); const isCashoutTile = cashout && isRevealed && !isMine; row.addComponents(new ButtonBuilder().setCustomId(isCashoutTile ? `mines:cashout:${id}:${index}` : `mines:cell:${id}:${index}`).setLabel(isRevealed ? (isMine ? '💣' : isCashoutTile ? '💰' : '💎') : '▫️').setStyle(isCashoutTile ? ButtonStyle.Success : isRevealed ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(isRevealed && !isCashoutTile)); } return row; }); }
+function warningEmbed(title: string, description: string) { return gameEmbed(title, description); }
+function minesRows(id: string, revealed: Set<number>, mines?: Set<number>, cashout = true) {
+  const firstSafe = [...revealed].sort((a, b) => a - b).find(index => !mines?.has(index));
+  return Array.from({ length: 5 }, (_, r) => {
+    const row = new ActionRowBuilder<ButtonBuilder>();
+    for (let c = 0; c < 5; c++) {
+      const index = r * 5 + c;
+      const isMine = mines?.has(index);
+      const isRevealed = revealed.has(index);
+      const isCashoutTile = cashout && isRevealed && !isMine && index === firstSafe;
+      row.addComponents(new ButtonBuilder()
+        .setCustomId(isCashoutTile ? `mines:cashout:${id}:${index}` : `mines:cell:${id}:${index}`)
+        .setLabel(isCashoutTile ? '💰 Cash Out' : isRevealed ? (isMine ? '💣' : '💎') : '▫️')
+        .setStyle(isCashoutTile ? ButtonStyle.Success : isRevealed ? ButtonStyle.Secondary : ButtonStyle.Primary)
+        .setDisabled(isRevealed && !isCashoutTile));
+    }
+    return row;
+  });
+}
 function withPolishedResponses<T extends Interaction>(interaction: T): T { const clientUser = interaction.client.user; return new Proxy(interaction, { get(target, property, receiver) { if (property === 'reply' || property === 'editReply' || property === 'followUp' || property === 'update') return (payload: unknown) => (target as any)[property](polishPayload(payload as any, clientUser)); return Reflect.get(target, property, receiver); } }); }
 
 async function handleMiniGameButton(interaction: ButtonInteraction) {
