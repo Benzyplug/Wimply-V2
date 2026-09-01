@@ -34,9 +34,11 @@ export function polishPayload<T extends MessagePayloadLike | string>(payload: T,
   if (typeof payload === 'string' || !payload) return payload;
 
   const objectPayload = payload as MessagePayloadLike;
-  const embeds = objectPayload.embeds;
-  if (!Array.isArray(embeds)) return payload;
+  if (!Array.isArray(objectPayload.embeds)) return payload;
 
+  // Capture the narrowed array in its own variable so TypeScript keeps the
+  // narrowing stable while the embeds are transformed.
+  const embeds: unknown[] = objectPayload.embeds;
   const polished = Object.assign({}, objectPayload, {
     embeds: embeds.map((embed) => decorateEmbed(embed, clientUser))
   });
