@@ -1,7 +1,7 @@
 import { EmbedBuilder, Colors } from 'discord.js';
 import { decorateEmbed, STYLE } from './presentation.js';
 
-const BRAND_FOOTER = 'Wimply V2.0 • Built by SHAX ⚡';
+const BRAND_FOOTER = 'Wimply V2.0 • Official Bot';
 
 export function createDefaultEmbed() {
   return new EmbedBuilder()
