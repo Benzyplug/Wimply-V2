@@ -14,7 +14,7 @@ const command: Command = {
       { title: '🎒 INVENTORY', names: ['inventory', 'give', 'drop', 'use'] },
       { title: '🛒 SHOP', names: ['shop', 'buy', 'sell'] },
       { title: '🛡️ ADMIN', names: ['config', 'dashboard', 'economy', 'item', 'mod'] },
-      { title: '🤖 SYSTEM', names: ['owner', 'ping', 'help'] }
+      { title: '🤖 SYSTEM', names: ['bot', 'owner', 'ping', 'help'] }
     ];
 
     const sections = categories.map(category => {
@@ -24,7 +24,7 @@ const command: Command = {
 
     const embed = createDefaultEmbed()
       .setTitle('╭─〔 📖 WIMPLY COMMAND CENTER 〕─╮')
-      .setDescription(`〢 **${commands.length} commands loaded**\n〢 **Slash:** \`/command\`\n〢 **Prefix:** \`#command\` or \`!command\`\n〢 Prefix and slash commands use the same backend logic.\n\n${sections}\n\n╰─〔 ⚡ Built by SHAX • Wimply V2.0 〕─╯`)
+      .setDescription(`〢 **${commands.length} commands loaded**\n〢 **Slash:** \`/command\`\n〢 **Prefix:** \`#command\` or \`!command\`\n〢 Prefix and slash commands use the same backend logic.\n\n${sections}\n\n╰─〔 ⚡ Wimply V2.0 • Official Bot 〕─╯`)
       .setThumbnail(interaction.client.user.displayAvatarURL({ size: 256 }));
 
     await interaction.reply({ embeds: [embed] });
