@@ -1,9 +1,7 @@
 import { AppError } from '../utils/errors.js';
-import { getOrCreateUser, adjustBalance } from './userService.js';
-import type { TransactionType } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { prisma } from './database.js';
-import type { GuildConfig, User } from '@prisma/client';
+import type { GuildConfig, User, TransactionType } from '@prisma/client';
 import { log } from '../utils/logger.js';
 
 interface UserToken {
@@ -63,8 +61,9 @@ export async function adjustBalance(
         const wallet = user.wallet + (data.walletDelta ?? 0n);
         const bank = user.bank + (data.bankDelta ?? 0n);
         if (wallet < 0n || bank < 0n) {
-          const required = data.walletDelta && data.walletDelta < 0n ? -data.walletDelta : 0n;
-          throw new AppError(`╭─〔 💳 BALANCE CHECK 〕─╮\n〢 **Wallet:** ${user.wallet.toLocaleString()} 🪙\n〢 **Required:** ${required.toLocaleString()} 🪙\n〢 **Short by:** ${required > user.wallet ? (required - user.wallet).toLocaleString() : '0'} 🪙\n╰─〔 📈 Earn more and try again 〕─╯`);
+          const required = data.walletDelta !== undefined && data.walletDelta < 0n ? -data.walletDelta : 0n;
+          const missing = required > user.wallet ? required - user.wallet : 0n;
+          throw new AppError(`╭─〔 💳 BALANCE CHECK 〕─╮\n〢 **Wallet:** ${user.wallet.toLocaleString()} 🪙\n〢 **Required:** ${required.toLocaleString()} 🪙\n〢 **Short by:** ${missing.toLocaleString()} 🪙\n╰─〔 📈 Earn more and try again 〕─╯`);
         }
 
         const updatePayload: Record<string, unknown> = {};
@@ -101,21 +100,15 @@ export async function adjustBalance(
 }
 
 export async function updateWallet(userId: string, amount: bigint, description: string): Promise<void> {
-  await adjustBalance(userId, { walletDelta: amount }, {
-    source: 'wallet', amount, type: 'BALANCE', description
-  });
+  await adjustBalance(userId, { walletDelta: amount }, { source: 'wallet', amount, type: 'BALANCE', description });
 }
 
 export async function depositToBank(userId: string, amount: bigint): Promise<void> {
-  await adjustBalance(userId, { walletDelta: -amount, bankDelta: amount }, {
-    source: 'deposit', amount, type: 'DEPOSIT', description: 'Deposit to bank'
-  });
+  await adjustBalance(userId, { walletDelta: -amount, bankDelta: amount }, { source: 'deposit', amount, type: 'DEPOSIT', description: 'Deposit to bank' });
 }
 
 export async function withdrawFromBank(userId: string, amount: bigint): Promise<void> {
-  await adjustBalance(userId, { walletDelta: amount, bankDelta: -amount }, {
-    source: 'withdraw', amount, type: 'WITHDRAW', description: 'Withdraw from bank'
-  });
+  await adjustBalance(userId, { walletDelta: amount, bankDelta: -amount }, { source: 'withdraw', amount, type: 'WITHDRAW', description: 'Withdraw from bank' });
 }
 
 export async function createTransactionOnly(
@@ -131,8 +124,8 @@ export async function createTransactionOnly(
       userId,
       source: 'transaction',
       amount,
-      type,
       balanceAfter: walletAfter + bankAfter,
+      type,
       description
     }
   });
