@@ -28,13 +28,11 @@ export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null
   if (cleanedTitle !== undefined) embed.setTitle(cleanedTitle);
   const cleanedDescription = cleanText(embed.data.description);
   if (cleanedDescription !== undefined) embed.setDescription(cleanedDescription);
-  embed.setFooter({ text: BRAND });
+  const banner = clientUser?.bannerURL?.({ size: 1024 }) ?? null;
+  embed.setFooter(banner ? { text: BRAND, iconURL: banner } : { text: BRAND });
   if (!embed.data.author && clientUser) embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
   if (!embed.data.thumbnail && clientUser) embed.setThumbnail(clientUser.displayAvatarURL({ size: 128 }));
-  if (!embed.data.image && clientUser?.bannerURL) {
-    const banner = clientUser.bannerURL({ size: 2048 });
-    if (banner) embed.setImage(banner);
-  }
+  if (!embed.data.image && banner) embed.setImage(banner);
   return embed;
 }
 
