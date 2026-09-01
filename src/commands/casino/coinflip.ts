@@ -12,51 +12,26 @@ const coinflipSchema = z.object({ amount: z.string().min(1, 'Amount is required'
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 const command: Command = {
-  data: new SlashCommandBuilder()
-    .setName('coinflip')
-    .setDescription('Flip a coin and bet on heads or tails')
-    .addStringOption(option => option.setName('amount').setDescription('Amount to bet').setRequired(true))
-    .addStringOption(option => option.setName('choice').setDescription('Pick heads or tails').setRequired(true).addChoices({ name: 'Heads', value: 'heads' }, { name: 'Tails', value: 'tails' })),
+  data: new SlashCommandBuilder().setName('coinflip').setDescription('Flip a coin and bet on heads or tails').addStringOption(o => o.setName('amount').setDescription('Amount to bet').setRequired(true)).addStringOption(o => o.setName('choice').setDescription('Pick heads or tails').setRequired(true).addChoices({ name: 'Heads', value: 'heads' }, { name: 'Tails', value: 'tails' })),
   async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guildId) return;
-    const payload = { amount: interaction.options.getString('amount', true), choice: interaction.options.getString('choice', true) };
-    const { amount: amountValue, choice } = validateCommandOptions(coinflipSchema, payload);
+    const { amount: amountValue, choice } = validateCommandOptions(coinflipSchema, { amount: interaction.options.getString('amount', true), choice: interaction.options.getString('choice', true) });
     const betAmount = parsePositiveAmount(amountValue);
     await interaction.deferReply();
     const guildConfig = await getOrCreateGuildConfig(interaction.guildId);
     const betDisplay = formatCurrency(betAmount, guildConfig.currencyEmoji);
     const pick = choice.toUpperCase();
-
-    const frames = [
-      '🪙',
-      '↗️  🪙  ↘️',
-      '⬆️  🪙  ⬆️',
-      '↘️  🪙  ↙️',
-      '🔄  🪙  🔄'
-    ];
-
+    // Resolve the wager before animation so the landing frame is always the real result.
+    const result = await playCoinflip(interaction.user.id, interaction.guildId, betAmount, choice as 'heads' | 'tails');
+    const frames = ['🪙', '↗️  🪙  ↘️', '⬆️  🪙  ⬆️', '↘️  🪙  ↙️', '🔄  🪙  🔄'];
     for (let index = 0; index < frames.length; index++) {
-      await interaction.editReply({
-        embeds: [createDefaultEmbed().setTitle('╭─〔 🪙 WIMPLY COINFLIP 〕─╮').setDescription(`〢 **Bet:** ${betDisplay}\n〢 **Pick:** **${pick}**\n\n**${frames[index]}**\n\n╰─〔 ${index + 1}/${frames.length} • ${index < frames.length - 1 ? 'Coin is flipping…' : 'Coin is landing…'} 〕─╯`)]
-      });
+      await interaction.editReply({ embeds: [createDefaultEmbed().setTitle('╭─〔 🪙 WIMPLY COINFLIP 〕─╮').setDescription(`〢 **Bet:** ${betDisplay}\n〢 **Pick:** **${pick}**\n\n**${frames[index]}**\n\n╰─〔 ${index + 1}/${frames.length} • ${index < frames.length - 1 ? 'Coin is flipping…' : 'Coin is landing…'} 〕─╯`)] });
       if (index < frames.length - 1) await sleep(330);
     }
-
-    const result = await playCoinflip(interaction.user.id, interaction.guildId, betAmount, choice as 'heads' | 'tails');
     const finalFace = result.outcome === 'heads' ? '🟡 HEADS' : '⚪ TAILS';
-    const finalEmbed = createDefaultEmbed()
-      .setTitle(result.won ? '╭─〔 🎉 COINFLIP WIN 〕─╮' : '╭─〔 💥 COINFLIP LOSS 〕─╮')
-      .setDescription(`〢 ${result.message}\n〢 **The coin landed:** ${finalFace}\n\n╰─〔 🪙 Flip complete 〕─╯`)
-      .addFields(
-        { name: '🎯 Your Pick', value: pick, inline: true },
-        { name: '🪙 Flip Result', value: result.outcome.toUpperCase(), inline: true },
-        { name: '💸 Wallet Change', value: formatCurrency(result.amount, guildConfig.currencyEmoji), inline: false },
-        { name: '💰 New Wallet', value: formatCurrency(result.newWallet, guildConfig.currencyEmoji), inline: true }
-      );
-
+    const finalEmbed = createDefaultEmbed().setTitle(result.won ? '╭─〔 🎉 COINFLIP WIN 〕─╮' : '╭─〔 💥 COINFLIP LOSS 〕─╮').setDescription(`〢 ${result.message}\n〢 **The coin landed:** ${finalFace}\n\n╰─〔 🪙 Flip complete 〕─╯`).addFields({ name: '🎯 Your Pick', value: pick, inline: true }, { name: '🪙 Flip Result', value: result.outcome.toUpperCase(), inline: true }, { name: '💸 Wallet Change', value: formatCurrency(result.amount, guildConfig.currencyEmoji), inline: false }, { name: '💰 New Wallet', value: formatCurrency(result.newWallet, guildConfig.currencyEmoji), inline: true });
     const resultMessage = await interaction.editReply({ embeds: [finalEmbed] });
     await reactToGameResult(resultMessage, result.won ? 'COINFLIP_WIN' : 'COINFLIP_LOSS');
   }
 };
-
 export default command;
