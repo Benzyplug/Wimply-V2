@@ -9,12 +9,12 @@ const command: Command = {
     const embed = new EmbedBuilder()
       .setColor(0x5865f2)
       .setTitle('╭─〔 👑 WIMPLY CREATOR 〕─╮')
-      .setDescription('〢 **Meet the creator behind Wimply.**\n〢 Public creator information is shown below; private contact details are intentionally fictional demo values.')
+      .setDescription('〢 **Meet the creator behind Wimply.**\n〢 Creator information is shown below; private contact details are intentionally fictional demo values.')
       .setThumbnail(avatar)
       .addFields(
         {
           name: '╭ 👤 Identity',
-          value: '〢 **Name:** Benzy\n〢 **Alias:** SHAX\n〢 **Role:** Founder & Developer',
+          value: '〢 **Name:** Benzy\n〢 **Username:** benzyplug\n〢 **Role:** Founder & Developer',
           inline: false
         },
         {
@@ -29,7 +29,7 @@ const command: Command = {
         },
         {
           name: '╭ 📍 Location',
-          value: '〢 **Country:** Nigeria 🇳🇬\n〢 **City:** New Avalon *(fictional)*',
+          value: '〢 **Country:** Nigeria 🇳🇬\n〢 **City:** New Avalon *(fictional demo value)*',
           inline: false
         },
         {
