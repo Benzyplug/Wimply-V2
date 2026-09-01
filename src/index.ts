@@ -21,14 +21,6 @@ const client = new Client({
 client.commands = new Collection<string, Command>();
 
 function isLoadableModuleFile(name: string): boolean {
-  // `.d.ts` declaration files end in `.ts` too, so a naive `.endsWith('.ts')`
-  // check matches them and the loader will try to `import()` them as if they
-  // were runtime code. A `.d.ts` file has no runtime bindings (it's type-only),
-  // so evaluating it throws "ReferenceError: <name> is not defined" the moment
-  // the erased declaration is referenced (e.g. `export default command;` after
-  // `declare const command: Command;` has been stripped). Explicitly excluding
-  // `.d.ts` here means the loader is correct even if declaration output is ever
-  // re-enabled in tsconfig, or a stray `.d.ts` ends up in `dist/` some other way.
   if (name.endsWith('.d.ts')) return false;
   return name.endsWith('.ts') || name.endsWith('.js');
 }
@@ -46,39 +38,53 @@ function getFilePaths(folder: string): string[] {
     }
   }
 
-  return paths;
+  return paths.sort((a, b) => a.localeCompare(b));
 }
 
 async function loadCommands() {
   const commandsPath = path.join(__dirname, 'commands');
   const commandFiles = getFilePaths(commandsPath);
+  const failed: string[] = [];
 
   for (const filePath of commandFiles) {
     const relativePath = `./${path.relative(__dirname, filePath).replace(/\\/g, '/')}`;
-    const commandModule = await import(relativePath);
-    const command = commandModule.default as Command;
+    try {
+      const commandModule = await import(relativePath);
+      const command = commandModule.default as Command;
 
-    if (!command?.data || !command?.execute) {
-      log.warn(`Skipped command file without required exports: ${path.basename(filePath)}`, 'Commands');
-      continue;
+      if (!command?.data || !command?.execute) {
+        throw new Error('Missing default Command export with data and execute.');
+      }
+
+      const name = command.data.name;
+      if (client.commands.has(name)) {
+        throw new Error(`Duplicate command name "${name}". Command names must be unique.`);
+      }
+
+      client.commands.set(name, command);
+      log.info(`Loaded /${name} ← ${path.relative(commandsPath, filePath)}`, 'Commands');
+    } catch (error) {
+      failed.push(`${path.relative(commandsPath, filePath)}: ${error instanceof Error ? error.message : String(error)}`);
     }
-
-    client.commands.set(command.data.name, command);
-    log.info(`Loaded /${command.data.name}`, 'Commands');
   }
+
+  if (failed.length) {
+    throw new Error(`Command loading failed for ${failed.length} file(s):\n${failed.join('\n')}`);
+  }
+
+  log.info(`Command loader complete: ${client.commands.size} unique commands from ${commandFiles.length} files`, 'Commands');
 }
 
 async function loadEvents() {
   const eventsPath = path.join(__dirname, 'events');
-  const eventFiles = fs.readdirSync(eventsPath).filter((file: string) => isLoadableModuleFile(file));
+  const eventFiles = fs.readdirSync(eventsPath).filter((file: string) => isLoadableModuleFile(file)).sort();
 
   for (const file of eventFiles) {
     const eventModule = await import(`./events/${file}`);
     const event = eventModule.default;
 
     if (!event?.name || !event?.execute) {
-      log.warn(`Skipped event file without required exports: ${file}`, 'Events');
-      continue;
+      throw new Error(`Event file ${file} is missing required exports.`);
     }
 
     if (event.once) {
@@ -95,35 +101,42 @@ async function registerCommands() {
   const rest = new REST({ version: '10' }).setToken(env.BOT_TOKEN);
   const commands = client.commands.map((command: Command) => command.data.toJSON());
 
+  if (commands.length > 100) {
+    throw new Error(`Discord supports at most 100 global/guild slash commands. Wimply currently has ${commands.length}.`);
+  }
+
   if (env.GUILD_ID) {
     await rest.put(Routes.applicationGuildCommands(env.CLIENT_ID, env.GUILD_ID), { body: commands });
-    log.info(`Registered ${commands.length} commands to guild ${env.GUILD_ID}`, 'Commands');
+    log.info(`Registered ${commands.length} guild commands to ${env.GUILD_ID}`, 'Commands');
   } else {
     await rest.put(Routes.applicationCommands(env.CLIENT_ID), { body: commands });
     log.info(`Registered ${commands.length} global commands`, 'Commands');
+    log.warn('No GUILD_ID configured. Global command propagation can take time; use GUILD_ID for immediate server testing.', 'Commands');
   }
+
+  log.info(`Command registry: ${commands.map((command: any) => `/${command.name}`).join(', ')}`, 'Commands');
 }
 
 async function bootstrap() {
   try {
-    console.log("1. Connecting database...");
+    console.log('1. Connecting database...');
     await connectDatabase();
 
-    console.log("2. Loading commands...");
+    console.log('2. Loading commands...');
     await loadCommands();
 
-    console.log("3. Loading events...");
+    console.log('3. Loading events...');
     await loadEvents();
 
-    console.log("4. Registering commands...");
+    console.log('4. Registering commands...');
     await registerCommands();
 
-    console.log("5. Logging into Discord...");
+    console.log('5. Logging into Discord...');
     await client.login(env.BOT_TOKEN);
 
-    console.log("✅ BOT ONLINE");
+    console.log(`✅ BOT ONLINE • ${client.commands.size} commands ready`);
   } catch (err) {
-    console.error("BOOTSTRAP ERROR:");
+    console.error('BOOTSTRAP ERROR:');
     console.error(err);
     process.exit(1);
   }
