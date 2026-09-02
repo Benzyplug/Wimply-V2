@@ -1,4 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { z } from 'zod';
 import type { Command } from '../../types/command.js';
 import { createDefaultEmbed } from '../../utils/embeds.js';
 import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
