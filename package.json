@@ -1,6 +1,6 @@
 {
   "name": "wimply-economy-bot",
-  "version": "2.1.1",
+  "version": "2.5.1",
   "private": true,
   "type": "module",
   "engines": { "node": ">=18.0.0" },
