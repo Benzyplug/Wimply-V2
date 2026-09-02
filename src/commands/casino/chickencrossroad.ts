@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import type { Command } from '../../types/command.js';
-import { startChicken, chickenGames } from '../../services/chickenCrossRoadService.js';
+import { startChicken } from '../../services/chickenCrossRoadService.js';
 import { formatCurrency } from '../../utils/format.js';
 function row(id: string, cashout = false) { return [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`chicken:cross:${id}`).setLabel('🐔 Cross Road').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(`chicken:cashout:${id}`).setLabel('💰 Cash Out').setStyle(ButtonStyle.Success).setDisabled(!cashout))]; }
 function embed(game: { road: number; multiplier: number; bet: bigint }, currency: string, result?: string) { return new EmbedBuilder().setColor(0x5865f2).setTitle('🐔 CHICKEN CROSS ROAD').setDescription(result ?? `## 🐔 Road ${game.road}/10\n\n📈 Multiplier: **${game.multiplier.toFixed(2)}×**\n💰 Wager: **${formatCurrency(game.bet, currency)}**\n🏆 Cash-out value: **${formatCurrency(game.bet * BigInt(Math.round(game.multiplier * 100)) / 100n, currency)}**\n\nChoose **Cross Road** to move forward. Each successful crossing increases the multiplier. Cash Out is available after your first crossing.`).setTimestamp().setFooter({ text: 'Wimply • Created & developed by ẞ€ÑZ¥' }); }
