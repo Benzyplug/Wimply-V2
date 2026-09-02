@@ -2,7 +2,7 @@ import { EmbedBuilder, Colors } from 'discord.js';
 import type { ChatInputCommandInteraction, ButtonInteraction } from 'discord.js';
 import { AppError } from './errors.js';
 import { log } from './logger.js';
-import { getBotBanner, getWimplyLogo } from './presentation.js';
+import { getWimplyErrorImage, getWimplyLogo } from './presentation.js';
 
 const BRAND = 'Wimply is created and developed by ẞ€ÑZ¥.';
 
@@ -11,18 +11,12 @@ function collectErrorDetails(error: unknown, depth = 0): string[] {
   if (error instanceof Error) {
     const details = [error.message];
     const nested = (error as Error & { errors?: unknown }).errors;
-    if (nested instanceof Map) {
-      for (const [key, value] of nested.entries()) details.push(`${String(key)}: ${collectErrorDetails(value, depth + 1).join(' | ')}`);
-    } else if (Array.isArray(nested)) {
-      for (const value of nested) details.push(...collectErrorDetails(value, depth + 1));
-    } else if (nested && typeof nested === 'object') {
-      for (const [key, value] of Object.entries(nested)) details.push(`${key}: ${collectErrorDetails(value, depth + 1).join(' | ')}`);
-    }
+    if (nested instanceof Map) for (const [key, value] of nested.entries()) details.push(`${String(key)}: ${collectErrorDetails(value, depth + 1).join(' | ')}`);
+    else if (Array.isArray(nested)) for (const value of nested) details.push(...collectErrorDetails(value, depth + 1));
+    else if (nested && typeof nested === 'object') for (const [key, value] of Object.entries(nested)) details.push(`${key}: ${collectErrorDetails(value, depth + 1).join(' | ')}`);
     return [...new Set(details.filter(Boolean))];
   }
-  if (typeof error === 'object') {
-    return Object.entries(error as Record<string, unknown>).flatMap(([key, value]) => [key, ...collectErrorDetails(value, depth + 1)]);
-  }
+  if (typeof error === 'object') return Object.entries(error as Record<string, unknown>).flatMap(([key, value]) => [key, ...collectErrorDetails(value, depth + 1)]);
   return [String(error)];
 }
 
@@ -33,15 +27,14 @@ function formatErrorMessage(error: unknown): string {
   return useful.length ? `${primary}\n\n**Details**\n${useful.map(detail => `• ${detail}`).join('\n')}` : primary;
 }
 
-function errorEmbed(message: string, banner: string | null, logo: string) {
-  const embed = new EmbedBuilder()
+function errorEmbed(message: string, logo: string) {
+  return new EmbedBuilder()
     .setColor(Colors.Red)
     .setTitle(`${logo} WIMPLY ERROR`)
     .setDescription(`**What happened**\n${message}\n\n**Recovery**\n🛠️ Check the command arguments and try again.\n📖 Use **/help** or **#help** for help.`)
+    .setImage(getWimplyErrorImage())
     .setTimestamp()
     .setFooter({ text: BRAND });
-  if (banner) embed.setImage(banner);
-  return embed;
 }
 
 function parseCountdown(message: string): number | null {
@@ -67,17 +60,16 @@ export async function handleInteractionError(interaction: ChatInputCommandIntera
   const message = error instanceof AppError ? error.message : formatErrorMessage(error);
   log.error(message, 'Interaction', { stack: error instanceof Error ? error.stack : undefined, error });
   try {
-    const banner = getBotBanner(interaction.client.user);
     const logo = getWimplyLogo(interaction.guild);
     const countdown = parseCountdown(message);
     const displayedMessage = countdown ? withDiscordCountdown(message, countdown) : message;
-    const embed = errorEmbed(displayedMessage, banner, logo);
+    const embed = errorEmbed(displayedMessage, logo);
     const payload = { embeds: [embed], ephemeral: true };
     if (interaction.replied) await interaction.followUp(payload);
     else if (interaction.deferred) await interaction.editReply({ embeds: [embed] });
     else if (interaction.isRepliable()) await interaction.reply(payload);
   } catch (replyError) {
     console.error('Failed to send error reply:', replyError);
-    log.error(formatErrorMessage(replyError), 'ErrorHandler', { stack: replyError instanceof Error ? replyError.stack : undefined });
+    log.error(formatErrorMessage(replyError), 'ErrorHandler', { stack: replyError instanceof Error ? replyError.stack : undefined, error: replyError });
   }
 }
