@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { minesCashoutRow, minesRows } from './mines.js';
+import { minesCashoutRow, minesRows } from '../../utils/minesComponents.js';
 
 test('Mines board stays within Discord component row limits', () => {
   const rows = minesRows('test-session', new Set<number>());
