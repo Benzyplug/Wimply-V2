@@ -1,5 +1,37 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder, version as discordJsVersion } from 'discord.js';
 import type { Command } from '../types/command.js';
-import { STYLE } from '../utils/presentation.js';
-const command: Command = { data: new SlashCommandBuilder().setName('bot').setDescription('View Wimply bot information'), async execute(interaction: ChatInputCommandInteraction) { const botUser = await interaction.client.user.fetch(true); const avatar = botUser.displayAvatarURL({ size: 1024 }); const banner = botUser.bannerURL({ size: 2048 }) ?? avatar; const commands = interaction.client.commands?.size ?? 0; const ownerId = process.env.OWNER_DISCORD_ID; const ownerTag = ownerId ? `<@${ownerId}>` : '@ẞ€ÑZ¥'; const uptime = Math.floor(process.uptime()); const days = Math.floor(uptime / 86400); const hours = Math.floor((uptime % 86400) / 3600); const minutes = Math.floor((uptime % 3600) / 60); const seconds = uptime % 60; const embed = new EmbedBuilder().setColor(0x5865f2).setTitle('🤖 WIMPLY BOT').setDescription(`**${STYLE.version}**\nEconomy • Casino • Inventory • XP • Profiles\n\nWimply is created and developed by **${ownerTag}**.`).setThumbnail(avatar).addFields({ name: '⚙️ Runtime', value: `Node.js **${process.version}** • discord.js **v${discordJsVersion}** • Uptime **${days}d ${hours}h ${minutes}m ${seconds}s**`, inline: false }, { name: '📊 Bot', value: `Servers **${interaction.client.guilds.cache.size}** • Commands **${commands}** • Status 🔴 Do Not Disturb`, inline: false }, { name: '🎮 Experience', value: 'Economy\nCasino & games\nInventory & shop\nXP & profiles', inline: true }, { name: '⚡ Interfaces', value: '`/command`\n`#command`\n`!command`\nShorthand aliases', inline: true }, { name: '🧩 Version', value: `**${STYLE.version}**\nProduction build`, inline: true }).setImage(banner).setTimestamp(); const row = new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId('bot:admin').setLabel('🧩 More Info').setStyle(ButtonStyle.Secondary)); await interaction.reply({ embeds: [embed], components: [row], allowedMentions: { parse: [] } }); } };
+import { getBotBanner, getWimplyLogo } from '../utils/presentation.js';
+
+const command: Command = {
+  data: new SlashCommandBuilder().setName('bot').setDescription('View Wimply bot information'),
+  async execute(interaction: ChatInputCommandInteraction) {
+    const botUser = await interaction.client.user.fetch(true);
+    const avatar = botUser.displayAvatarURL({ size: 1024 });
+    const banner = getBotBanner(botUser);
+    const commands = interaction.client.commands?.size ?? 0;
+    const uptime = Math.floor(process.uptime());
+    const days = Math.floor(uptime / 86400);
+    const hours = Math.floor((uptime % 86400) / 3600);
+    const minutes = Math.floor((uptime % 3600) / 60);
+    const seconds = uptime % 60;
+    const logo = getWimplyLogo(interaction.guild);
+    const embed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setTitle(`${logo} WIMPLY BOT`)
+      .setDescription(`**Wimply V2.5.1**\nEconomy • Casino • Inventory • XP • Profiles\n\nWimply is created and developed by **ẞ€ÑZ¥**.`)
+      .setThumbnail(avatar)
+      .addFields(
+        { name: '〢 Runtime', value: `Node.js **${process.version}**\ndiscord.js **v${discordJsVersion}**\nUptime **${days}d ${hours}h ${minutes}m ${seconds}s**`, inline: true },
+        { name: '〢 Bot', value: `Servers **${interaction.client.guilds.cache.size}**\nCommands **${commands}**\nStatus **🔴 Do Not Disturb**`, inline: true },
+        { name: '〢 Experience', value: 'Economy\nCasino & games\nInventory & shop\nXP & profiles', inline: true },
+        { name: '〢 Interfaces', value: '`/command`\n`#command`\n`!command`\nShorthand aliases', inline: true },
+        { name: '〢 Version', value: '**Wimply V2.5.1**\nProduction build', inline: true }
+      )
+      .setImage(banner)
+      .setTimestamp();
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId('bot:admin').setLabel('🧩 More Info').setStyle(ButtonStyle.Secondary));
+    await interaction.reply({ embeds: [embed], components: [row], allowedMentions: { parse: [] } });
+  }
+};
+
 export default command;
