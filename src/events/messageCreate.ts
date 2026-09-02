@@ -106,15 +106,7 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
     return value;
   };
   const options = {
-    getString: (name: string, required = false) => {
-      const value = getValue(name, required); if (value === undefined) return null;
-      if (commandName === 'coinflip' && name === 'choice') {
-        const normalized = value.toLowerCase();
-        if (normalized === 'h' || normalized === 'head' || normalized === 'heads') return 'heads';
-        if (normalized === 't' || normalized === 'tail' || normalized === 'tails') return 'tails';
-      }
-      return value;
-    },
+    getString: (name: string, required = false) => { const value = getValue(name, required); if (value === undefined) return null; if (commandName === 'coinflip' && name === 'choice') { const normalized = value.toLowerCase(); if (normalized === 'h' || normalized === 'head' || normalized === 'heads') return 'heads'; if (normalized === 't' || normalized === 'tail' || normalized === 'tails') return 'tails'; } return value; },
     getInteger: (name: string, required = false) => { const value = getValue(name, required); return value === undefined ? null : Number.parseInt(value, 10); },
     getNumber: (name: string, required = false) => { const value = getValue(name, required); return value === undefined ? null : Number.parseFloat(value); },
     getBoolean: (name: string, required = false) => { const value = getValue(name, required); return value === undefined ? null : value.toLowerCase() === 'true'; },
@@ -128,6 +120,7 @@ function buildPrefixInteraction(message: Message, command: Command, tokens: stri
   const adapter = {
     user: message.author, member: message.member, guild: message.guild, guildId: message.guildId, channel: message.channel,
     client: message.client, memberPermissions: message.member?.permissions ?? null, options,
+    isPrefixCommand: true,
     get replied() { return sent !== null; }, get deferred() { return deferred; },
     isRepliable: () => true, isChatInputCommand: () => true,
     deferReply: async () => { deferred = true; },
@@ -182,10 +175,10 @@ async function handlePrefix(message: Message): Promise<boolean> {
   } catch (error) {
     const commandName = command.data.toJSON().name;
     const rawMessage = error instanceof Error ? error.message : `Unable to process ${commandName}.`;
-    const usage = rawMessage.startsWith('INPUT_USAGE:') ? rawMessage.slice('INPUT_USAGE:'.length) : GAMBLE_USAGE[commandName];
-    const isInputError = Boolean(usage) || rawMessage.startsWith('Missing required argument:') || rawMessage.startsWith('Could not find ');
+    const explicitUsage = rawMessage.startsWith('INPUT_USAGE:') ? rawMessage.slice('INPUT_USAGE:'.length) : undefined;
+    const isInputError = Boolean(explicitUsage) || rawMessage.startsWith('Missing required argument:') || rawMessage.startsWith('Could not find ');
     if (isInputError) {
-      const reply = await message.reply({ embeds: [prefixErrorEmbed(message, usage ?? rawMessage)] });
+      const reply = await message.reply({ embeds: [prefixErrorEmbed(message, explicitUsage ?? rawMessage)] });
       await reactToPrefixReply(message, content, reply); return true;
     }
     if (state) await handleInteractionError(state.interaction, error);
