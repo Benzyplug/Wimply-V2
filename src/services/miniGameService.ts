@@ -17,6 +17,9 @@ export type MinesState = {
   id: string;
   userId: string;
   guildId: string;
+  channelId?: string;
+  boardMessageId?: string;
+  cashoutMessageId?: string;
   bet: bigint;
   mines: Set<number>;
   revealed: Set<number>;
