@@ -7,6 +7,7 @@ import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
 import { validateCommandOptions } from '../../utils/commandValidation.js';
 import { playDiceRoll } from '../../services/casinoService.js';
 import { getOrCreateGuildConfig } from '../../services/guildConfigService.js';
+import { playGameSlides } from '../../utils/gameAnimation.js';
 
 const diceSchema = z.object({
   amount: z.string().min(1, 'Amount is required'),
@@ -44,10 +45,17 @@ const command: Command = {
     if (!Number.isInteger(multiplierValue) || multiplierValue < 1 || multiplierValue > 3) throw new AppError('Multiplier must be an integer between 1 and 3.');
     await interaction.deferReply();
     const guildConfig = await getOrCreateGuildConfig(interaction.guildId);
-    const initialEmbed = createDefaultEmbed().setTitle('Dice Roll').setDescription(`Rolling a ${sidesValue}-sided dice for ${formatCurrency(betAmount, guildConfig.currencyEmoji)}...\nBet: **${targetValue}** • Multiplier: **${multiplierValue}x**`).addFields({ name: 'Status', value: 'Rolling...', inline: true }, { name: 'Payout', value: `${multiplierValue}x on exact hit`, inline: true });
-    await interaction.editReply({ embeds: [initialEmbed] });
+    const betDisplay = formatCurrency(betAmount, guildConfig.currencyEmoji);
     const result = await playDiceRoll(interaction.user.id, interaction.guildId, betAmount, sidesValue, targetValue, multiplierValue);
-    const finalEmbed = createDefaultEmbed().setTitle(result.won ? 'Dice Win!' : 'Dice Loss').setDescription(result.message).addFields(
+    const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+    const rolling = (frame: number) => diceFaces[frame % diceFaces.length];
+    await playGameSlides([
+      { content: { embeds: [createDefaultEmbed().setTitle('🎲 DICE • BET LOCKED').setDescription(`💰 Bet: **${betDisplay}**\n🎯 Target: **${targetValue}**\n📈 Multiplier: **${multiplierValue}×**\n\n🎲 Preparing the roll…`)] }, delay: 220 },
+      { content: { embeds: [createDefaultEmbed().setTitle('🎲 DICE • ROLLING').setDescription(`💰 Bet: **${betDisplay}**\n🎯 Target: **${targetValue}**\n\n## ${rolling(1)}  ${rolling(2)}  ${rolling(3)}\n\n🎲 The die is rolling…`)] }, delay: 180 },
+      { content: { embeds: [createDefaultEmbed().setTitle('🎲 DICE • FINAL SPIN').setDescription(`💰 Bet: **${betDisplay}**\n🎯 Target: **${targetValue}**\n\n## ${rolling(4)}  ${rolling(5)}  ${rolling(0)}\n\n🔒 Locking the result…`)] }, delay: 220 },
+      { content: { embeds: [createDefaultEmbed().setTitle('🎲 DICE • REVEAL').setDescription(`💰 Bet: **${betDisplay}**\n🎯 Target: **${targetValue}**\n\n## 🎲 ${result.roll}\n\n${result.roll === result.target ? '🎯 Exact match!' : '❌ Target missed.'}`)] }, delay: 0 }
+    ], async (payload) => { await interaction.editReply(payload); });
+    const finalEmbed = createDefaultEmbed().setTitle(result.won ? '🎉 DICE • WIN' : '💥 DICE • LOSS').setDescription(result.message).addFields(
       { name: 'Target', value: `${result.target}`, inline: true },
       { name: 'Rolled', value: `${result.roll}`, inline: true },
       { name: 'Multiplier', value: `${result.multiplier}x`, inline: true },
