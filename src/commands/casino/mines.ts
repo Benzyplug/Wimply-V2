@@ -5,6 +5,7 @@ import { createDefaultEmbed } from '../../utils/embeds.js';
 import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
 import { validateCommandOptions } from '../../utils/commandValidation.js';
 import { chargeGame, createGameSessionId, getGameCurrency, minesGames, randomMines } from '../../services/miniGameService.js';
+import { playGameSlides } from '../../utils/gameAnimation.js';
 
 const schema = z.object({ amount: z.string().min(1), mines: z.number().int().min(1).max(24) });
 const size = 25;
@@ -47,8 +48,15 @@ const command: Command = {
     const currency = await getGameCurrency(interaction.guildId);
     const id = createGameSessionId(interaction.user.id);
     const revealed = new Set<number>();
-    minesGames.set(id, { id, userId: interaction.user.id, guildId: interaction.guildId, bet, mines: randomMines(mineCount, size), revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 });
-    await interaction.reply({ embeds: [createDefaultEmbed().setTitle('💣 MINES 5×5').setDescription(`💰 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n💣 Mines: **${mineCount}/25**\n📈 Multiplier: **1.00×**\n💎 Gems found: **0**\n\nPick a tile. 💎 increases your cash-out value; 💣 ends the round. Cash Out is always kept **outside the board**.`)], components: [...minesRows(id, revealed), ...minesCashoutRow(id, false)] });
+    const mines = randomMines(mineCount, size);
+    minesGames.set(id, { id, userId: interaction.user.id, guildId: interaction.guildId, bet, mines, revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 });
+    await interaction.deferReply();
+    const slide = (title: string, description: string, boardRevealed = revealed) => ({ embeds: [createDefaultEmbed().setTitle(title).setDescription(description)], components: [...minesRows(id, boardRevealed), ...minesCashoutRow(id, boardRevealed.size > 0)] });
+    await playGameSlides([
+      { content: slide('💣 MINES • BOARD LOADING', `💰 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n💣 Mines hidden: **${mineCount}**\n\n🎲 Planting the minefield…`), delay: 260 },
+      { content: slide('💣 MINES • FIELD ARMED', `💰 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n💣 Mines: **${mineCount}/25**\n📈 Multiplier: **1.00×**\n\n🔒 The board is armed. Choose carefully.`), delay: 320 },
+      { content: slide('💎 MINES 5×5', `💰 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n💣 Mines: **${mineCount}/25**\n📈 Multiplier: **1.00×**\n💎 Gems found: **0**\n\nPick a tile. 💎 increases your cash-out value; 💣 ends the round.`), delay: 0 }
+    ], async (payload) => { await interaction.editReply(payload); });
   }
 };
 
