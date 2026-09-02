@@ -2,7 +2,9 @@ import { EmbedBuilder } from 'discord.js';
 
 const BRAND = 'Wimply is created and developed by ẞ€ÑZ¥.';
 const DEFAULT_COLOR = 0x5865f2;
-const BOT_VERSION = 'Wimply V2.5.8';
+const BOT_VERSION = 'Wimply V2.5.9';
+const WIMPLY_ERROR_IMAGE = 'https://raw.githubusercontent.com/Benzyplug/Wimply-V2/main/assets/errors/Wimply_error.webp';
+const WIMPLY_404_IMAGE = 'https://raw.githubusercontent.com/Benzyplug/Wimply-V2/main/assets/errors/Wimply_404.webp';
 const LEGACY_STAMP = /╰─〔\s*⚡\s*〢\s*(?:Wimply V2\.(?:0|1|1\.1)\s*•\s*)?Made by ẞ€ÑZ¥\s*〢\s*⚡\s*〕─╯/g;
 const LEGACY_BOX = /[╭╮╰╯]─〔[^〕]*〕─[╮╯]/g;
 type ClientUserLike = { username?: string; bannerURL?: (...args: any[]) => string | null | undefined; displayAvatarURL: (...args: any[]) => string };
@@ -23,6 +25,9 @@ export function getBotBanner(clientUser: ClientUserLike): string {
   return clientUser.bannerURL?.({ size: 2048 }) ?? clientUser.displayAvatarURL({ size: 1024 });
 }
 
+export function getWimplyErrorImage(): string { return WIMPLY_ERROR_IMAGE; }
+export function getWimply404Image(): string { return WIMPLY_404_IMAGE; }
+
 function isCasinoFinalTitle(title: string | null | undefined) {
   if (!title) return false;
   const normalized = title.toUpperCase();
@@ -39,7 +44,9 @@ export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null
   if (description !== undefined) embed.setDescription(description);
   embed.setFooter({ text: BRAND });
   if (!embed.data.author && clientUser) embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
-  if (clientUser && isCasinoFinalTitle(title) && !embed.data.image?.url) embed.setImage(getBotBanner(clientUser));
+  if (title?.toUpperCase().includes('WIMPLY ERROR')) embed.setImage(WIMPLY_ERROR_IMAGE);
+  else if (title?.toUpperCase().includes('UNKNOWN COMMAND')) embed.setImage(WIMPLY_404_IMAGE);
+  else if (clientUser && isCasinoFinalTitle(title) && !embed.data.image?.url) embed.setImage(getBotBanner(clientUser));
   return embed;
 }
 
