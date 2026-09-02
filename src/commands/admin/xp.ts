@@ -1,9 +1,12 @@
-import { ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { PermissionFlagsBits, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from '../../types/command.js';
 import { prisma } from '../../services/database.js';
 import { getOrCreateUser } from '../../services/userService.js';
 import { AppError } from '../../utils/errors.js';
 import { getWimplyLogo } from '../../utils/presentation.js';
+
+const XP_ACTIONS = new Set(['set', 'add', 'remove', 'level', 'notify-on', 'notify-off', 'message']);
 
 function levelForXp(xp: number) {
   return Math.max(1, Math.floor(Math.sqrt(Math.max(0, xp) / 100)) + 1);
@@ -67,6 +70,10 @@ const command: Command = {
       return;
     }
 
+    if (!XP_ACTIONS.has(action)) {
+      throw new AppError('Unknown XP action. Use `set`, `add`, `remove`, `level`, `notify-on`, `notify-off`, or `message`.');
+    }
+
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
       throw new AppError('Only server administrators can manage XP.');
     }
@@ -75,55 +82,22 @@ const command: Command = {
     await getOrCreateUser(interaction.user.id, interaction.guildId);
 
     if (action === 'notify-on') {
-      await prisma.guildConfig.update({
-        where: { guildId: interaction.guildId },
-        data: { levelUpEnabled: true }
-      });
-      await interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x5865f2)
-            .setTitle(`${getWimplyLogo(interaction.guild)} XP NOTIFICATIONS`)
-            .setDescription('Level-up notifications are now **enabled**.')
-        ]
-      });
+      await prisma.guildConfig.update({ where: { guildId: interaction.guildId }, data: { levelUpEnabled: true } });
+      await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`${getWimplyLogo(interaction.guild)} XP NOTIFICATIONS`).setDescription('Level-up notifications are now **enabled**.')] });
       return;
     }
 
     if (action === 'notify-off') {
-      await prisma.guildConfig.update({
-        where: { guildId: interaction.guildId },
-        data: { levelUpEnabled: false }
-      });
-      await interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x5865f2)
-            .setTitle(`${getWimplyLogo(interaction.guild)} XP NOTIFICATIONS`)
-            .setDescription('Level-up notifications are now **disabled**.')
-        ]
-      });
+      await prisma.guildConfig.update({ where: { guildId: interaction.guildId }, data: { levelUpEnabled: false } });
+      await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`${getWimplyLogo(interaction.guild)} XP NOTIFICATIONS`).setDescription('Level-up notifications are now **disabled**.')] });
       return;
     }
 
     if (action === 'message') {
       const text = interaction.options.getString('text');
-      if (!text?.trim()) {
-        throw new AppError('Provide the new level-up message in **text**. You can use `{user}` and `{level}`.');
-      }
-
-      await prisma.guildConfig.update({
-        where: { guildId: interaction.guildId },
-        data: { levelUpMessage: text.trim() }
-      });
-      await interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x5865f2)
-            .setTitle(`${getWimplyLogo(interaction.guild)} XP NOTIFICATIONS`)
-            .setDescription(`Level-up message set to:\n${text.trim()}`)
-        ]
-      });
+      if (!text?.trim()) throw new AppError('Provide the new level-up message in **text**. You can use `{user}` and `{level}`.');
+      await prisma.guildConfig.update({ where: { guildId: interaction.guildId }, data: { levelUpMessage: text.trim() } });
+      await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`${getWimplyLogo(interaction.guild)} XP NOTIFICATIONS`).setDescription(`Level-up message set to:\n${text.trim()}`)] });
       return;
     }
 
@@ -133,33 +107,28 @@ const command: Command = {
       throw new AppError('Use: `#xp set @user 1000`, `#xp add @user 100`, `#xp remove @user 100`, or `#xp level @user 5`.');
     }
 
-    if (action === 'level' && amount < 1) {
-      throw new AppError('Level must be at least **1**.');
-    }
+    if (action === 'level' && amount < 1) throw new AppError('Level must be at least **1**.');
 
     const { user } = await getOrCreateUser(target.id, interaction.guildId);
-    const xp = action === 'set'
-      ? amount
-      : action === 'add'
-        ? user.xp + amount
-        : action === 'remove'
-          ? Math.max(0, user.xp - amount)
-          : Math.max(0, (amount - 1) ** 2 * 100);
-    const level = action === 'level' ? amount : levelForXp(xp);
+    let xp: number;
+    let level: number;
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { xp, level }
-    });
+    if (action === 'set') {
+      xp = amount;
+      level = levelForXp(xp);
+    } else if (action === 'add') {
+      xp = user.xp + amount;
+      level = levelForXp(xp);
+    } else if (action === 'remove') {
+      xp = Math.max(0, user.xp - amount);
+      level = levelForXp(xp);
+    } else {
+      level = amount;
+      xp = Math.max(0, (amount - 1) ** 2 * 100);
+    }
 
-    await interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(0x5865f2)
-          .setTitle(`${getWimplyLogo(interaction.guild)} XP UPDATED`)
-          .setDescription(`**${target.username}**\n\n✨ XP: **${xp.toLocaleString()}**\n🏆 Level: **${level}**\n\nAction: **${action}**`)
-      ]
-    });
+    await prisma.user.update({ where: { id: user.id }, data: { xp, level } });
+    await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`${getWimplyLogo(interaction.guild)} XP UPDATED`).setDescription(`**${target.username}**\n\n✨ XP: **${xp.toLocaleString()}**\n🏆 Level: **${level}**\n\nAction: **${action}**`)] });
   }
 };
 
