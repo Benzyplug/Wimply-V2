@@ -8,6 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "postinstall": "prisma generate",
     "build": "tsc -p tsconfig.build.json",
+    "test": "node --import tsx --test src/utils/gameAnimation.test.ts",
     "start": "prisma migrate deploy && node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
