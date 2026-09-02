@@ -8,6 +8,7 @@ import { chargeGame, createGameSessionId, getGameCurrency, minesGames, randomMin
 import type { MinesState } from '../../services/miniGameService.js';
 import { playGameSlides } from '../../utils/gameAnimation.js';
 import { minesRows, minesCashoutRow } from '../../utils/minesComponents.js';
+export { minesRows, minesCashoutRow } from '../../utils/minesComponents.js';
 
 const schema = z.object({ amount: z.string().min(1), mines: z.number().int().min(1).max(24) });
 const size = 25;
