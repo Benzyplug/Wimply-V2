@@ -6,6 +6,33 @@ import { getBotBanner, getWimplyLogo } from './presentation.js';
 
 const BRAND = 'Wimply is created and developed by ẞ€ÑZ¥.';
 
+function collectErrorDetails(error: unknown, depth = 0): string[] {
+  if (depth > 5 || error === null || error === undefined) return [];
+  if (error instanceof Error) {
+    const details = [error.message];
+    const nested = (error as Error & { errors?: unknown }).errors;
+    if (nested instanceof Map) {
+      for (const [key, value] of nested.entries()) details.push(`${String(key)}: ${collectErrorDetails(value, depth + 1).join(' | ')}`);
+    } else if (Array.isArray(nested)) {
+      for (const value of nested) details.push(...collectErrorDetails(value, depth + 1));
+    } else if (nested && typeof nested === 'object') {
+      for (const [key, value] of Object.entries(nested)) details.push(`${key}: ${collectErrorDetails(value, depth + 1).join(' | ')}`);
+    }
+    return [...new Set(details.filter(Boolean))];
+  }
+  if (typeof error === 'object') {
+    return Object.entries(error as Record<string, unknown>).flatMap(([key, value]) => [key, ...collectErrorDetails(value, depth + 1)]);
+  }
+  return [String(error)];
+}
+
+function formatErrorMessage(error: unknown): string {
+  const details = collectErrorDetails(error);
+  const primary = details[0] ?? 'Something went wrong while processing that action.';
+  const useful = details.filter(detail => detail !== primary && detail.length <= 300).slice(0, 4);
+  return useful.length ? `${primary}\n\n**Details**\n${useful.map(detail => `• ${detail}`).join('\n')}` : primary;
+}
+
 function errorEmbed(message: string, banner: string | null, logo: string) {
   const embed = new EmbedBuilder()
     .setColor(Colors.Red)
@@ -30,22 +57,15 @@ function withDiscordCountdown(message: string, remaining: number) {
 
 export function handleProcessError(error: unknown, source: string) {
   console.error('========== PROCESS ERROR ==========');
-  if (error instanceof Error) {
-    console.error(error);
-    log.error(error.message, source, { stack: error.stack });
-  } else {
-    console.error(error);
-    log.error('Unknown process error', source, { error });
-  }
+  console.error(error);
+  log.error(formatErrorMessage(error), source, { stack: error instanceof Error ? error.stack : undefined, error });
 }
 
 export async function handleInteractionError(interaction: ChatInputCommandInteraction | ButtonInteraction, error: unknown) {
   console.error('========== FULL ERROR ==========');
-  const message = error instanceof AppError || error instanceof Error
-    ? error.message
-    : 'Something went wrong while processing that action. No intentional balance change was made by the error handler.';
-  if (error instanceof Error) console.error(error);
-  log.error(error instanceof Error ? error.message : 'Unknown error', 'Interaction', { stack: error instanceof Error ? error.stack : undefined, error });
+  console.error(error);
+  const message = error instanceof AppError ? error.message : formatErrorMessage(error);
+  log.error(message, 'Interaction', { stack: error instanceof Error ? error.stack : undefined, error });
   try {
     const banner = getBotBanner(interaction.client.user);
     const logo = getWimplyLogo(interaction.guild);
@@ -58,5 +78,6 @@ export async function handleInteractionError(interaction: ChatInputCommandIntera
     else if (interaction.isRepliable()) await interaction.reply(payload);
   } catch (replyError) {
     console.error('Failed to send error reply:', replyError);
+    log.error(formatErrorMessage(replyError), 'ErrorHandler', { stack: replyError instanceof Error ? replyError.stack : undefined });
   }
 }
