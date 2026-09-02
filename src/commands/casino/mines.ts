@@ -59,7 +59,7 @@ const command: Command = {
     const id = createGameSessionId(interaction.user.id);
     const revealed = new Set<number>();
     const mines = randomMines(mineCount, size);
-    const game: MinesState = { id, userId: interaction.user.id, guildId: interaction.guildId, channelId: interaction.channelId, bet, mines, revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 };
+    const game: MinesState = { id, userId: interaction.user.id, guildId: interaction.guildId, channelId: interaction.channelId ?? interaction.channel?.id, bet, mines, revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 };
     minesGames.set(id, game);
     await interaction.deferReply();
     const slide = (title: string, description: string, boardRevealed = revealed) => ({ embeds: [createDefaultEmbed().setTitle(title).setDescription(description)], components: minesRows(id, boardRevealed) });
