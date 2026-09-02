@@ -27,6 +27,29 @@ export function minesCashoutRow(id: string, enabled: boolean) {
   return [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`mines:cashout:${id}`).setLabel('💰 Cash Out').setStyle(ButtonStyle.Success).setDisabled(!enabled))];
 }
 
+async function syncCashoutMessage(interaction: ChatInputCommandInteraction, id: string, enabled: boolean, fallbackDescription: string) {
+  const game = minesGames.get(id);
+  if (!game) return;
+  if (game.cashoutMessageId && game.channelId) {
+    try {
+      const channel = await interaction.client.channels.fetch(game.channelId);
+      if (channel?.isTextBased() && 'messages' in channel) {
+        const message = await channel.messages.fetch(game.cashoutMessageId);
+        await message.edit({ components: minesCashoutRow(id, enabled) });
+        return;
+      }
+    } catch {
+      game.cashoutMessageId = undefined;
+    }
+  }
+  const sent = await interaction.followUp({
+    embeds: [createDefaultEmbed().setTitle('💰 MINES • CASH OUT').setDescription(fallbackDescription)],
+    components: minesCashoutRow(id, enabled),
+    fetchReply: true
+  });
+  game.cashoutMessageId = sent.id;
+}
+
 const command: Command = {
   data: new SlashCommandBuilder()
     .setName('mines')
@@ -40,7 +63,8 @@ const command: Command = {
     const existing = [...minesGames.values()].find(game => game.userId === interaction.user.id && game.guildId === interaction.guildId && game.expiresAt > Date.now());
     if (existing) {
       const currency = await getGameCurrency(interaction.guildId);
-      await interaction.reply({ embeds: [createDefaultEmbed().setTitle('💣 MINES — RESUMED').setDescription(`Your unfinished Mines round has been restored.\n\n💰 Bet: **${formatCurrency(existing.bet, currency.currencyEmoji)}**\n💣 Mines: **${existing.mineCount}/25**\n💎 Gems found: **${existing.revealed.size}**\n📈 Multiplier: **${existing.multiplier.toFixed(2)}×**\n💵 Cash-out value: **${formatCurrency(existing.bet * BigInt(Math.round(existing.multiplier * 100)) / 100n, currency.currencyEmoji)}**\n\nContinue on the board below.`)], components: [...minesRows(existing.id, existing.revealed), ...minesCashoutRow(existing.id, existing.revealed.size > 0)] });
+      await interaction.reply({ embeds: [createDefaultEmbed().setTitle('💣 MINES — RESUMED').setDescription(`Your unfinished Mines round has been restored.\n\n💰 Bet: **${formatCurrency(existing.bet, currency.currencyEmoji)}**\n💣 Mines: **${existing.mineCount}/25**\n💎 Gems found: **${existing.revealed.size}**\n📈 Multiplier: **${existing.multiplier.toFixed(2)}×**\n💵 Cash-out value: **${formatCurrency(existing.bet * BigInt(Math.round(existing.multiplier * 100)) / 100n, currency.currencyEmoji)}**\n\nContinue on the board below.`)], components: minesRows(existing.id, existing.revealed, existing.mines) });
+      await syncCashoutMessage(interaction, existing.id, existing.revealed.size > 0, `Round resumed. Reveal at least **1 safe tile** before cashing out.\n\n💎 Gems found: **${existing.revealed.size}**\n📈 Current multiplier: **${existing.multiplier.toFixed(2)}×**`);
       return;
     }
     const bet = parsePositiveAmount(amount);
@@ -49,14 +73,19 @@ const command: Command = {
     const id = createGameSessionId(interaction.user.id);
     const revealed = new Set<number>();
     const mines = randomMines(mineCount, size);
-    minesGames.set(id, { id, userId: interaction.user.id, guildId: interaction.guildId, bet, mines, revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 });
+    const game = { id, userId: interaction.user.id, guildId: interaction.guildId, channelId: interaction.channelId, bet, mines, revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 };
+    minesGames.set(id, game);
     await interaction.deferReply();
-    const slide = (title: string, description: string, boardRevealed = revealed) => ({ embeds: [createDefaultEmbed().setTitle(title).setDescription(description)], components: [...minesRows(id, boardRevealed), ...minesCashoutRow(id, boardRevealed.size > 0)] });
+    const slide = (title: string, description: string, boardRevealed = revealed) => ({ embeds: [createDefaultEmbed().setTitle(title).setDescription(description)], components: minesRows(id, boardRevealed) });
     await playGameSlides([
       { content: slide('💣 MINES • BOARD LOADING', `💰 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n💣 Mines hidden: **${mineCount}**\n\n🎲 Planting the minefield…`), delay: 260 },
       { content: slide('💣 MINES • FIELD ARMED', `💰 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n💣 Mines: **${mineCount}/25**\n📈 Multiplier: **1.00×**\n\n🔒 The board is armed. Choose carefully.`), delay: 320 },
       { content: slide('💎 MINES 5×5', `💰 Bet: **${formatCurrency(bet, currency.currencyEmoji)}**\n💣 Mines: **${mineCount}/25**\n📈 Multiplier: **1.00×**\n💎 Gems found: **0**\n\nPick a tile. 💎 increases your cash-out value; 💣 ends the round.`), delay: 0 }
-    ], async (payload) => { await interaction.editReply(payload); });
+    ], async (payload) => {
+      const edited = await interaction.editReply(payload);
+      if (edited && typeof edited === 'object' && 'id' in edited) game.boardMessageId = String(edited.id);
+    });
+    await syncCashoutMessage(interaction, id, false, `Reveal at least **1 safe tile** to unlock cash out.\n\n💣 Mines: **${mineCount}/25**\n💎 Gems found: **0**\n📈 Multiplier: **1.00×**`);
   }
 };
 
