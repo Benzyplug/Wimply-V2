@@ -5,7 +5,7 @@ import { reactToMatchingMessage } from '../services/reactionService.js';
 import { awardXp, getOrCreateUser } from '../services/userService.js';
 import { log } from '../utils/logger.js';
 import { handleInteractionError } from '../utils/errorHandler.js';
-import { getBotBanner, getWimplyLogo, polishPayload, STYLE } from '../utils/presentation.js';
+import { getBotBanner, getWimplyLogo, getWimply404Image, polishPayload, STYLE } from '../utils/presentation.js';
 
 const PREFIXES = ['#', '!'];
 
@@ -35,7 +35,9 @@ type PrefixCommandJson = { name: string; options?: PrefixOption[] };
 type PrefixAdapterState = { interaction: Parameters<Command['execute']>[0]; getReply: () => Message | null };
 
 function baseEmbed(title: string, description: string): EmbedBuilder {
-  return new EmbedBuilder().setColor(0x5865f2).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: STYLE.brand });
+  const embed = new EmbedBuilder().setColor(0x5865f2).setTitle(title).setDescription(description).setTimestamp().setFooter({ text: STYLE.brand });
+  if (title.toUpperCase().includes('UNKNOWN COMMAND')) embed.setImage(getWimply404Image());
+  return embed;
 }
 
 function prefixErrorEmbed(message: Message, description: string): EmbedBuilder {
