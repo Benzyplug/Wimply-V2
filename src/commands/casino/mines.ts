@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { z } from 'zod';
 import type { Command } from '../../types/command.js';
 import { createDefaultEmbed } from '../../utils/embeds.js';
@@ -7,26 +7,10 @@ import { validateCommandOptions } from '../../utils/commandValidation.js';
 import { chargeGame, createGameSessionId, getGameCurrency, minesGames, randomMines } from '../../services/miniGameService.js';
 import type { MinesState } from '../../services/miniGameService.js';
 import { playGameSlides } from '../../utils/gameAnimation.js';
+import { minesRows, minesCashoutRow } from '../../utils/minesComponents.js';
 
 const schema = z.object({ amount: z.string().min(1), mines: z.number().int().min(1).max(24) });
 const size = 25;
-
-export function minesRows(id: string, revealed: Set<number>, mines?: Set<number>) {
-  return Array.from({ length: 5 }, (_, r) => {
-    const row = new ActionRowBuilder<ButtonBuilder>();
-    for (let c = 0; c < 5; c++) {
-      const i = r * 5 + c;
-      const isMine = mines?.has(i);
-      const isRevealed = revealed.has(i);
-      row.addComponents(new ButtonBuilder().setCustomId(`mines:cell:${id}:${i}`).setLabel(isRevealed ? (isMine ? '💣' : '💎') : '▫️').setStyle(isRevealed ? ButtonStyle.Secondary : ButtonStyle.Primary).setDisabled(Boolean(isRevealed)));
-    }
-    return row;
-  });
-}
-
-export function minesCashoutRow(id: string, enabled: boolean) {
-  return [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`mines:cashout:${id}`).setLabel('💰 Cash Out').setStyle(ButtonStyle.Success).setDisabled(!enabled))];
-}
 
 async function syncCashoutMessage(interaction: ChatInputCommandInteraction, id: string, enabled: boolean, fallbackDescription: string) {
   const game = minesGames.get(id);
