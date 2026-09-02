@@ -2,7 +2,7 @@ name: Wimply Build
 
 on:
   push:
-    branches: [main, feature/owo-game-animations]
+    branches: [main]
   pull_request:
     branches: [main]
 
