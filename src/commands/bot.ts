@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder, version as discordJsVersion } from 'discord.js';
 import type { Command } from '../types/command.js';
-import { getBotBanner, getWimplyLogo } from '../utils/presentation.js';
+import { getBotBanner, getWimplyLogo, STYLE } from '../utils/presentation.js';
 
 const command: Command = {
   data: new SlashCommandBuilder().setName('bot').setDescription('View Wimply bot information'),
@@ -18,14 +18,14 @@ const command: Command = {
     const embed = new EmbedBuilder()
       .setColor(0x5865f2)
       .setTitle(`${logo} WIMPLY BOT`)
-      .setDescription(`**Wimply V2.5.1**\nEconomy • Casino • Inventory • XP • Profiles\n\nWimply is created and developed by **ẞ€ÑZ¥**.`)
+      .setDescription(`**${STYLE.version}**\nEconomy • Casino • Inventory • XP • Profiles\n\nWimply is created and developed by **ẞ€ÑZ¥**.`)
       .setThumbnail(avatar)
       .addFields(
         { name: '〢 Runtime', value: `Node.js **${process.version}**\ndiscord.js **v${discordJsVersion}**\nUptime **${days}d ${hours}h ${minutes}m ${seconds}s**`, inline: true },
         { name: '〢 Bot', value: `Servers **${interaction.client.guilds.cache.size}**\nCommands **${commands}**\nStatus **🔴 Do Not Disturb**`, inline: true },
         { name: '〢 Experience', value: 'Economy\nCasino & games\nInventory & shop\nXP & profiles', inline: true },
         { name: '〢 Interfaces', value: '`/command`\n`#command`\n`!command`\nShorthand aliases', inline: true },
-        { name: '〢 Version', value: '**Wimply V2.5.1**\nProduction build', inline: true }
+        { name: '〢 Version', value: `**${STYLE.version}**\nProduction build`, inline: true }
       )
       .setImage(banner)
       .setTimestamp();
