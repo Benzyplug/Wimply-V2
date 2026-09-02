@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import type { Command } from '../types/command.js';
-import { getBotBanner, getWimplyLogo } from '../utils/presentation.js';
+import { getBotBanner, getWimplyLogo, STYLE } from '../utils/presentation.js';
 
 const command: Command = {
   data: new SlashCommandBuilder().setName('owner').setDescription('View Wimply creator information'),
@@ -19,7 +19,7 @@ const command: Command = {
         { name: '〢 Nationality', value: '🇳🇬 Nigeria\n🇬🇧 United Kingdom', inline: true },
         { name: '〢 Location', value: 'London, United Kingdom 🇬🇧', inline: true },
         { name: '〢 Development', value: 'Discord bots • automation • economy systems\nTypeScript • Node.js • Prisma', inline: false },
-        { name: '〢 Wimply', value: 'Created & developed by **ẞ€ÑZ¥**\n**Wimply V2.5.1**', inline: false }
+        { name: '〢 Wimply', value: `Created & developed by **ẞ€ÑZ¥**\n**${STYLE.version}**`, inline: false }
       )
       .setImage(banner)
       .setTimestamp();
