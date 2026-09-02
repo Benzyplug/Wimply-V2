@@ -1,32 +1,7 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import type { Command } from '../../types/command.js';
-import { createSuccessEmbed } from '../../utils/embeds.js';
 import { transfer } from '../../services/economyService.js';
-
-const command: Command = {
-  data: new SlashCommandBuilder()
-    .setName('pay')
-    .setDescription('Pay another user')
-    .addUserOption((option) =>
-      option.setName('user').setDescription('User to pay').setRequired(true)
-    )
-    .addStringOption((option) =>
-      option.setName('amount').setDescription('Amount to pay').setRequired(true)
-    ),
-  async execute(interaction: ChatInputCommandInteraction) {
-    if (!interaction.guildId) {
-      await interaction.reply({ content: 'This command must be used in a guild.', ephemeral: true });
-      return;
-    }
-
-    await interaction.deferReply();
-
-    const target = interaction.options.getUser('user', true);
-    const amount = interaction.options.getString('amount', true);
-    const result = await transfer(interaction.user.id, interaction.guildId, target.id, amount);
-
-    await interaction.editReply({ embeds: [createSuccessEmbed('Payment Complete', result.message)] });
-  }
-};
-
+export type PendingTransfer = { id: string; from: string; to: string; amount: string; guildId: string };
+export const pendingTransfers = new Map<string, PendingTransfer>();
+const command: Command = { data: new SlashCommandBuilder().setName('pay').setDescription('Pay another user').addUserOption(o => o.setName('user').setDescription('User to pay').setRequired(true)).addStringOption(o => o.setName('amount').setDescription('Amount to pay').setRequired(true)), async execute(interaction: ChatInputCommandInteraction) { if (!interaction.guildId) { await interaction.reply({ content: 'This command must be used in a guild.', ephemeral: true }); return; } const target = interaction.options.getUser('user', true); const amount = interaction.options.getString('amount', true); const id = crypto.randomUUID(); pendingTransfers.set(id, { id, from: interaction.user.id, to: target.id, amount, guildId: interaction.guildId }); setTimeout(() => pendingTransfers.delete(id), 60_000); const embed = new EmbedBuilder().setColor(0x5865f2).setTitle('💸 CONFIRM PAYMENT').setDescription(`Review the transfer before it is sent.\n\n👤 **Recipient**\n${target}\n\n💰 **Amount**\n**${amount} Wompy**\n\n⚠️ This action will move funds immediately after confirmation.`).setTimestamp().setFooter({ text: 'Wimply • Created & developed by ẞ€ÑZ¥' }); const row = new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(`pay:confirm:${id}`).setLabel('✅ Confirm Transfer').setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`pay:cancel:${id}`).setLabel('✖ Cancel').setStyle(ButtonStyle.Secondary)); await interaction.reply({ embeds: [embed], components: [row], allowedMentions: { parse: [] } }); } };
 export default command;
