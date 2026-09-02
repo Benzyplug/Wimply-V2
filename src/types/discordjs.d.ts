@@ -1,4 +1,4 @@
-import type { MessageCreateOptions, MessagePayload, PartialGroupDMChannel } from 'discord.js';
+import type { MessageCreateOptions, MessagePayload } from 'discord.js';
 
 declare module 'discord.js' {
   interface PartialGroupDMChannel {
