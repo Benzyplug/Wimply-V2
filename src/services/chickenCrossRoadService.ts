@@ -1,0 +1,8 @@
+import { adjustBalance, getOrCreateUser } from './userService.js';
+import { AppError } from '../utils/errors.js';
+
+export type ChickenGame = { id: string; userId: string; guildId: string; bet: bigint; road: number; multiplier: number; active: boolean };
+export const chickenGames = new Map<string, ChickenGame>();
+export function createChickenId(userId: string) { return `${userId}:${crypto.randomUUID()}`; }
+export async function startChicken(userId: string, guildId: string, amount: string) { const existing = [...chickenGames.values()].find(g => g.userId === userId && g.guildId === guildId && g.active); if (existing) return existing; const bet = BigInt(amount.replace(/,/g, '')); if (bet <= 0n) throw new AppError('Your Chicken Cross Road wager must be greater than **0** Wompy.'); const { user } = await getOrCreateUser(userId, guildId); if (user.wallet < bet) throw new AppError(`You have **${user.wallet.toLocaleString()} Wompy**. You need **${bet.toLocaleString()} Wompy** to cross.`); await adjustBalance(user.id, { walletDelta: -bet }, { source: 'chicken-cross-road', amount: -bet, type: 'ADMIN', description: 'Chicken Cross Road entry bet' }); const game = { id: createChickenId(userId), userId, guildId, bet, road: 0, multiplier: 1, active: true }; chickenGames.set(game.id, game); return game; }
+export async function cashOutChicken(game: ChickenGame) { const payout = game.bet * BigInt(Math.round(game.multiplier * 100)) / 100n; await adjustBalance(game.userId, { walletDelta: payout }, { source: 'chicken-cross-road', amount: payout, type: 'ADMIN', description: 'Chicken Cross Road payout' }); game.active = false; chickenGames.delete(game.id); return payout; }
