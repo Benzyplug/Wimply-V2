@@ -5,19 +5,13 @@ const DEFAULT_COLOR = 0x5865f2;
 const BOT_VERSION = 'Wimply V2.5.1';
 const LEGACY_STAMP = /╰─〔\s*⚡\s*〢\s*(?:Wimply V2\.(?:0|1|1\.1)\s*•\s*)?Made by ẞ€ÑZ¥\s*〢\s*⚡\s*〕─╯/g;
 const LEGACY_BOX = /[╭╮╰╯]─〔[^〕]*〕─[╮╯]/g;
-
-type ClientUserLike = { username?: string; displayAvatarURL: (options?: { size?: number }) => string };
+type ClientUserLike = { username?: string; bannerURL?: (options?: { size?: number }) => string | null; displayAvatarURL: (options?: { size?: number }) => string };
 type MessagePayloadLike = { embeds?: unknown[]; content?: string; [key: string]: unknown };
 type GuildLike = { emojis?: { cache?: { find: (predicate: (emoji: { name?: string | null }) => boolean) => unknown } } };
 
 function cleanText(value: string | null | undefined) {
   if (!value) return value;
-  return value
-    .replace(LEGACY_STAMP, '')
-    .replace(LEGACY_BOX, '')
-    .replace(/(^|\n)\s*〢\s*/g, '$1')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return value.replace(LEGACY_STAMP, '').replace(LEGACY_BOX, '').replace(/(^|\n)\s*〢\s*/g, '$1').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function getWimplyLogo(guild?: GuildLike | null): string {
@@ -25,8 +19,14 @@ export function getWimplyLogo(guild?: GuildLike | null): string {
   return emoji?.toString?.() ?? 'Wimply';
 }
 
-export function getBotBanner(clientUser: { bannerURL?: (options?: { size?: number }) => string | null; displayAvatarURL: (options?: { size?: number }) => string }): string {
+export function getBotBanner(clientUser: ClientUserLike): string {
   return clientUser.bannerURL?.({ size: 2048 }) ?? clientUser.displayAvatarURL({ size: 1024 });
+}
+
+function isCasinoFinalTitle(title: string | null | undefined) {
+  if (!title) return false;
+  const normalized = title.toUpperCase();
+  return normalized.includes('CASHED OUT') || normalized.includes('• HIT') || normalized.includes('• LOST') || normalized.includes('ROAD CLEARED') || normalized.includes('GAME OVER') || normalized.includes('BLACKJACK •') || normalized.includes('COINFLIP •') || normalized.includes('DICE •') || normalized.includes('SLOT •') || normalized.includes('SNAIL GARDEN •');
 }
 
 export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null) {
@@ -38,9 +38,8 @@ export function decorateEmbed(input: unknown, clientUser?: ClientUserLike | null
   if (title !== undefined) embed.setTitle(title);
   if (description !== undefined) embed.setDescription(description);
   embed.setFooter({ text: BRAND });
-  if (!embed.data.author && clientUser) {
-    embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
-  }
+  if (!embed.data.author && clientUser) embed.setAuthor({ name: clientUser.username ?? 'Wimply', iconURL: clientUser.displayAvatarURL({ size: 64 }) });
+  if (clientUser && isCasinoFinalTitle(title) && !embed.data.image?.url) embed.setImage(getBotBanner(clientUser));
   return embed;
 }
 
@@ -57,11 +56,4 @@ export function balanceMessage(current: bigint, required: bigint, action: string
   return `💳 **Wallet check**\nBalance: **${current.toLocaleString()} ${emoji}**\nRequired: **${required.toLocaleString()} ${emoji}**\nStatus: ✅ Ready to ${action}.`;
 }
 
-export const STYLE = {
-  version: BOT_VERSION,
-  brand: BRAND,
-  stamp: BRAND,
-  title: (emoji: string, text: string) => `${emoji} ${text.toUpperCase()}`,
-  line: (emoji: string, text: string) => `${emoji} ${text}`,
-  bottom: (emoji = '〢', text = 'ẞ€ÑZ¥') => `${emoji} ${text}`
-};
+export const STYLE = { version: BOT_VERSION, brand: BRAND, stamp: BRAND, title: (emoji: string, text: string) => `${emoji} ${text.toUpperCase()}`, line: (emoji: string, text: string) => `${emoji} ${text}`, bottom: (emoji = '〢', text = 'ẞ€ÑZ¥') => `${emoji} ${text}` };
