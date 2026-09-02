@@ -2,7 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 
 const BRAND = 'Wimply is created and developed by ẞ€ÑZ¥.';
 const DEFAULT_COLOR = 0x5865f2;
-const BOT_VERSION = 'Wimply V2.5.5';
+const BOT_VERSION = 'Wimply V2.5.7';
 const LEGACY_STAMP = /╰─〔\s*⚡\s*〢\s*(?:Wimply V2\.(?:0|1|1\.1)\s*•\s*)?Made by ẞ€ÑZ¥\s*〢\s*⚡\s*〕─╯/g;
 const LEGACY_BOX = /[╭╮╰╯]─〔[^〕]*〕─[╮╯]/g;
 type ClientUserLike = { username?: string; bannerURL?: (...args: any[]) => string | null | undefined; displayAvatarURL: (...args: any[]) => string };
