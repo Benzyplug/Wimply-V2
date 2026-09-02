@@ -15,6 +15,7 @@ const command: Command = {
     const minutes = Math.floor((uptime % 3600) / 60);
     const seconds = uptime % 60;
     const logo = getWimplyLogo(interaction.guild);
+    const isPrefixCommand = Boolean((interaction as ChatInputCommandInteraction & { isPrefixCommand?: boolean }).isPrefixCommand);
     const embed = new EmbedBuilder()
       .setColor(0x5865f2)
       .setTitle(`${logo} WIMPLY BOT`)
@@ -30,7 +31,12 @@ const command: Command = {
       .setImage(banner)
       .setTimestamp();
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId('bot:admin').setLabel('🧩 More Info').setStyle(ButtonStyle.Secondary));
-    await interaction.reply({ embeds: [embed], components: [row], allowedMentions: { parse: [] } });
+    await interaction.reply({
+      content: isPrefixCommand ? '@everyone' : undefined,
+      embeds: [embed],
+      components: [row],
+      allowedMentions: isPrefixCommand ? { parse: ['everyone'] } : { parse: [] }
+    });
   }
 };
 
