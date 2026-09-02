@@ -5,6 +5,7 @@ import { createDefaultEmbed } from '../../utils/embeds.js';
 import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
 import { validateCommandOptions } from '../../utils/commandValidation.js';
 import { chargeGame, createGameSessionId, getGameCurrency, minesGames, randomMines } from '../../services/miniGameService.js';
+import type { MinesState } from '../../services/miniGameService.js';
 import { playGameSlides } from '../../utils/gameAnimation.js';
 
 const schema = z.object({ amount: z.string().min(1), mines: z.number().int().min(1).max(24) });
@@ -73,7 +74,7 @@ const command: Command = {
     const id = createGameSessionId(interaction.user.id);
     const revealed = new Set<number>();
     const mines = randomMines(mineCount, size);
-    const game = { id, userId: interaction.user.id, guildId: interaction.guildId, channelId: interaction.channelId, bet, mines, revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 };
+    const game: MinesState = { id, userId: interaction.user.id, guildId: interaction.guildId, channelId: interaction.channelId, bet, mines, revealed, multiplier: 1, mineCount, expiresAt: Date.now() + 10 * 60_000 };
     minesGames.set(id, game);
     await interaction.deferReply();
     const slide = (title: string, description: string, boardRevealed = revealed) => ({ embeds: [createDefaultEmbed().setTitle(title).setDescription(description)], components: minesRows(id, boardRevealed) });
