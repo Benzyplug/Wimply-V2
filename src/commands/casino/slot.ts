@@ -1,14 +1,13 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { z } from 'zod';
 import type { Command } from '../../types/command.js';
 import { createDefaultEmbed } from '../../utils/embeds.js';
 import { formatCurrency, parsePositiveAmount } from '../../utils/format.js';
 import { validateCommandOptions } from '../../utils/commandValidation.js';
 import { playSlot } from '../../services/slotService.js';
 import { getOrCreateGuildConfig } from '../../services/guildConfigService.js';
+import { playGameSlides } from '../../utils/gameAnimation.js';
 
 const slotSchema = z.object({ amount: z.string().min(1, 'Amount is required') });
-const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 const reels = ['7️⃣', '💎', '🔔', '🍊', '🍒', '⭐'];
 const randomSymbol = () => reels[Math.floor(Math.random() * reels.length)];
 
@@ -20,14 +19,14 @@ function reelColumn(symbol: string, offset: number, spinning: boolean) {
 
 function spinEmbed(betDisplay: string, current: string[], frame: number, locked: number) {
   return createDefaultEmbed()
-    .setTitle('╭─〔 🎰 WIMPLY SLOTS 〕─╮')
-    .setDescription(`〢 **Bet:** ${betDisplay}\n〢 **LIVE REELS** ↓\n〢 ${locked ? `🔒 Reels locked: **${locked}/3**` : '⚡ All reels spinning…'}\n\n${locked === 3 ? '💎 RESULT LOCKED' : '🔄 SPINNING…'}`)
+    .setTitle('🎰 WIMPLY SLOTS')
+    .setDescription(`💰 **Bet:** ${betDisplay}\n\n${locked ? `🔒 Reels locked: **${locked}/3**` : '⚡ All reels spinning…'}\n\n${locked === 3 ? '💎 RESULT LOCKED' : '🔄 SPINNING…'}`)
     .addFields(
       { name: '🎰 REEL 1', value: reelColumn(current[0], frame * 2, locked >= 1), inline: true },
       { name: '🎰 REEL 2', value: reelColumn(current[1], frame * 3, locked >= 2), inline: true },
       { name: '🎰 REEL 3', value: reelColumn(current[2], frame * 4, locked >= 3), inline: true },
     )
-    .setFooter({ text: `🎰 Spin ${frame}/6 • ${locked === 3 ? 'All reels stopped' : 'Rolling…'}` });
+    .setFooter({ text: `🎰 Slide ${frame}/8 • ${locked === 3 ? 'All reels stopped' : 'Rolling…'}` });
 }
 
 const command: Command = {
@@ -41,22 +40,21 @@ const command: Command = {
     const betDisplay = formatCurrency(betAmount, guildConfig.currencyEmoji);
     const result = await playSlot(interaction.user.id, interaction.guildId, betAmount);
     let current = [randomSymbol(), randomSymbol(), randomSymbol()];
-    await interaction.editReply({ embeds: [spinEmbed(betDisplay, current, 1, 0)] });
-
     const lockOrder = [0, 2, 1];
-    for (let frame = 2; frame <= 6; frame++) {
-      const locked = Math.max(0, Math.min(3, frame - 3));
-      current = [0, 1, 2].map(index => {
-        const lockPosition = lockOrder.indexOf(index);
-        return lockPosition !== -1 && lockPosition < locked ? result.reels[index] : randomSymbol();
+    const slides = Array.from({ length: 8 }, (_, index) => {
+      const frame = index + 1;
+      const locked = Math.max(0, Math.min(3, frame - 4));
+      current = [0, 1, 2].map(reelIndex => {
+        const lockPosition = lockOrder.indexOf(reelIndex);
+        return lockPosition !== -1 && lockPosition < locked ? result.reels[reelIndex] : randomSymbol();
       });
-      await interaction.editReply({ embeds: [spinEmbed(betDisplay, current, frame, locked)] });
-      if (frame < 6) await sleep(130);
-    }
+      return { content: { embeds: [spinEmbed(betDisplay, [...current], frame, locked)] }, delay: frame === 1 ? 220 : frame === 7 ? 320 : 130 };
+    });
+    await playGameSlides(slides, async (payload) => { await interaction.editReply(payload); });
 
     const resultEmbed = createDefaultEmbed()
-      .setTitle(result.jackpot ? '╭─〔 💎 JACKPOT 〕─╮' : result.won ? '╭─〔 🎉 SLOT WIN 〕─╮' : '╭─〔 💥 SLOT LOSS 〕─╮')
-      .setDescription(`〢 ${result.message}\n\n╰─〔 🎰 Reels locked • Result: ${result.reels.join(' • ')} 〕─╯`)
+      .setTitle(result.jackpot ? '💎 SLOTS • JACKPOT' : result.won ? '🎉 SLOTS • WIN' : '💥 SLOTS • LOSS')
+      .setDescription(`${result.message}\n\n🎰 **${result.reels.join(' • ')}**`)
       .addFields(
         { name: '🎰 REEL 1', value: reelColumn(result.reels[0], 0, false), inline: true },
         { name: '🎰 REEL 2', value: reelColumn(result.reels[1], 0, false), inline: true },
