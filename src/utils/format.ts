@@ -1,11 +1,16 @@
 import { AppError } from './errors.js';
+
 export function formatCurrency(amount: bigint, emoji = '🪙'): string {
-  const formatted = Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Number(amount));
+  const formatted = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(amount);
   return `${emoji} ${formatted}`;
 }
 
 export function parsePositiveAmount(value: string): bigint {
-  const parsed = BigInt(value.replace(/[^0-9]/g, ''));
+  const normalized = value.trim().replace(/,/g, '');
+  if (!/^\d+$/.test(normalized)) {
+    throw new AppError('Enter a whole-number amount, for example **1000** or **1,000**.');
+  }
+  const parsed = BigInt(normalized);
   if (parsed <= 0n) {
     throw new AppError('Amount must be greater than zero.');
   }
@@ -18,7 +23,7 @@ export function formatDuration(ms: number): string {
   const minutes = Math.floor(ms / 60000) % 60;
   const hours = Math.floor(ms / 3600000) % 24;
   const days = Math.floor(ms / 86400000);
-  const parts = [];
+  const parts: string[] = [];
 
   if (days) parts.push(`${days}d`);
   if (hours) parts.push(`${hours}h`);
