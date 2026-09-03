@@ -6,6 +6,7 @@ import { awardXp, getOrCreateUser } from '../services/userService.js';
 import { log } from '../utils/logger.js';
 import { handleInteractionError } from '../utils/errorHandler.js';
 import { getBotBanner, getWimplyLogo, getWimply404Image, polishPayload, STYLE } from '../utils/presentation.js';
+import { MAINTENANCE_ENABLED, buildMaintenanceMessage } from '../utils/maintenanceMode.js';
 
 const PREFIXES = ['#', '!'];
 const ALIASES: Record<string, string> = {
@@ -145,6 +146,13 @@ async function handlePrefix(message: Message): Promise<boolean> {
   const tokens = tokenize(content.slice(prefix.length).trim());
   const rawName = tokens.shift()?.toLowerCase();
   if (!rawName) return false;
+
+  if (MAINTENANCE_ENABLED) {
+    const reply = await message.reply(buildMaintenanceMessage(getWimplyLogo(message.guild), getBotBanner(message.client.user)) as any);
+    await reactToPrefixReply(message, content, reply);
+    return true;
+  }
+
   const name = ALIASES[rawName] ?? rawName;
   if (name === 'help' || name === 'commands') {
     const commands = message.client.commands ? [...message.client.commands.keys()].sort() : [];
@@ -185,7 +193,8 @@ export default {
   async execute(message: Message) {
     if (!message.guildId || message.author.bot || !message.content.trim()) return;
     try {
-      await handlePrefix(message);
+      const handledPrefix = await handlePrefix(message);
+      if (handledPrefix) return;
       const key = `${message.guildId}:${message.author.id}`;
       const now = Date.now();
       if ((xpCooldown.get(key) ?? 0) <= now) {
